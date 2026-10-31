@@ -2,7 +2,7 @@ name: preplist
 description: "Plan meals, manage recipes, track nutrition, organize groceries, and keep your kitchen inventory in one place."
 publish_to: 'none'
 license: MIT
-version: 0.1.0+1
+version: 0.1.0-alpha.1+1
 
 environment:
   sdk: ^3.13.7
