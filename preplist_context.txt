@@ -1,0 +1,5321 @@
+=== TREE ===
+assets/icon/app_icon_foreground.png
+assets/icon/app_icon.png
+lib/app/about_screen.dart
+lib/app/food_bootstrapper.dart
+lib/app/main_screen.dart
+lib/core/constants/measurement_units.dart
+lib/core/database/app_database.dart
+lib/data/api/swiss_food_api.dart
+lib/data/services/swiss_food_import_service.dart
+lib/features/foods/models/swiss_food.dart
+lib/features/foods/repositories/food_repository.dart
+lib/features/foods/widgets/food_picker_dialog.dart
+lib/features/groceries/repositories/grocery_repository.dart
+lib/features/groceries/screens/groceries_tab.dart
+lib/features/inventory/repositories/inventory_repository.dart
+lib/features/inventory/screens/inventory_tab.dart
+lib/features/meal_planning/models/meal.dart
+lib/features/meal_planning/repositories/meal_repository.dart
+lib/features/meal_planning/screens/week_plan_tab.dart
+lib/features/nutrition/services/nutrition_calculator.dart
+lib/features/recipes/models/recipe.dart
+lib/features/recipes/repositories/recipe_repository.dart
+lib/features/recipes/screens/recipes_tab.dart
+lib/features/recipes/widgets/ingredient_editor.dart
+lib/features/recipes/widgets/nutrition_summary_view.dart
+lib/main.dart
+
+=== pubspec.yaml ===
+name: preplist
+description: "A new Flutter project."
+publish_to: 'none'
+license: MIT
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.7
+
+dependencies:
+  dynamic_color: ^2.1.0
+  flutter:
+    sdk: flutter
+  http: ^1.6.0
+  package_info_plus: ^10.2.2
+  path: ^1.9.1
+  sqflite: ^2.4.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.0
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  remove_alpha_ios: true
+  adaptive_icon_background: "#1E7A4C"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icon/app_icon.png
+=== analysis_options.yaml ===
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+
+=== android/app/src/main/AndroidManifest.xml ===
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <application
+        android:label="PrepList"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+    <!-- Required to query activities that can process text, see:
+         https://developer.android.com/training/package-visibility and
+         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
+</manifest>
+
+=== lib/app/about_screen.dart ===
+import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+
+class AboutScreen extends StatelessWidget {
+  const AboutScreen({super.key});
+
+  static const String developerName = 'Oleksii Palamarchuk';
+  static const String licenseName = 'MIT License';
+  static const int releaseYear = 2026;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('About PrepList')),
+      body: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          const SizedBox(height: 16),
+
+          // App identity
+          Center(
+            child: Column(
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Image.asset(
+                      'assets/icon/app_icon.png',
+                      width: 88,
+                      height: 88,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'PrepList',
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Chip(
+                  avatar: Icon(Icons.science_outlined, size: 16),
+                  label: Text('ALPHA'),
+                ),
+                FutureBuilder<PackageInfo>(
+                  future: PackageInfo.fromPlatform(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const SizedBox.shrink();
+                    }
+
+                    final info = snapshot.data!;
+
+                    return Text(
+                      'Version ${info.version} (${info.buildNumber})',
+                      style: theme.textTheme.bodySmall,
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 32),
+
+          // About
+          _sectionTitle(context, 'About'),
+
+          const Text(
+            'PrepList helps you plan meals, organize recipes, '
+            'track nutrition, and manage groceries and food inventory.',
+          ),
+
+          const SizedBox(height: 24),
+
+          // Features
+          _sectionTitle(context, 'Features'),
+
+          const _InfoTile(
+            icon: Icons.calendar_month_outlined,
+            title: 'Meal planning',
+            subtitle: 'Organize your meals throughout the week.',
+          ),
+          const _InfoTile(
+            icon: Icons.restaurant_menu,
+            title: 'Recipes',
+            subtitle: 'Create recipes and manage ingredients.',
+          ),
+          const _InfoTile(
+            icon: Icons.monitor_weight_outlined,
+            title: 'Nutrition tracking',
+            subtitle: 'Track calories, protein, carbohydrates and fats.',
+          ),
+          const _InfoTile(
+            icon: Icons.shopping_cart_outlined,
+            title: 'Groceries',
+            subtitle: 'Keep track of your shopping list.',
+          ),
+          const _InfoTile(
+            icon: Icons.inventory_2_outlined,
+            title: 'Inventory',
+            subtitle: 'Manage your available food items.',
+          ),
+
+          const SizedBox(height: 24),
+
+          // Developer
+          _sectionTitle(context, 'Developer'),
+
+          const _InfoTile(
+            icon: Icons.person_outline,
+            title: developerName,
+            subtitle: 'Independent developer',
+          ),
+
+          const SizedBox(height: 24),
+
+          // License
+          _sectionTitle(context, 'License'),
+
+          const _InfoTile(
+            icon: Icons.description_outlined,
+            title: licenseName,
+            subtitle: 'Open-source software',
+          ),
+
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Text(
+              'Copyright © 2026 Oleksii Palamarchuk\n\n'
+              'Permission is hereby granted, free of charge, to any person '
+              'obtaining a copy of this software and associated documentation '
+              'files (the "Software"), to deal in the Software without '
+              'restriction, including without limitation the rights to use, '
+              'copy, modify, merge, publish, distribute, sublicense, and/or '
+              'sell copies of the Software, and to permit persons to whom '
+              'the Software is furnished to do so, subject to the following '
+              'conditions:\n\n'
+              'The above copyright notice and this permission notice shall '
+              'be included in all copies or substantial portions of the '
+              'Software.\n\n'
+              'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY '
+              'KIND, EXPRESS OR IMPLIED.',
+              style: TextStyle(fontSize: 12, height: 1.5),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Privacy
+          _sectionTitle(context, 'Privacy'),
+
+          const Text(
+            'Recipes, meal plans, and inventory are stored in the '
+            'application database on your device. Importing food data '
+            'may connect to external food data services.',
+          ),
+
+          const SizedBox(height: 24),
+
+          // Alpha notice
+          _sectionTitle(context, 'Alpha release'),
+
+          const Text(
+            'PrepList is currently in early development. Features may '
+            'be incomplete, and unexpected issues may occur. Keep '
+            'backups of important data during testing.',
+          ),
+
+          const SizedBox(height: 24),
+
+          const Divider(),
+
+          // Third-party licenses
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.article_outlined),
+            title: const Text('Third-party licenses'),
+            subtitle: const Text('Flutter and open-source dependencies'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              showLicensePage(
+                context: context,
+                applicationName: 'PrepList',
+                applicationVersion: 'Alpha',
+                applicationLegalese: 'Copyright © 2026 $developerName',
+              );
+            },
+          ),
+
+          const SizedBox(height: 24),
+
+          Center(
+            child: Text(
+              'Made with Flutter',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  static Widget _sectionTitle(BuildContext context, String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleMedium
+            ?.copyWith(fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+}
+
+class _InfoTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _InfoTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon),
+      title: Text(title),
+      subtitle: Text(subtitle),
+    );
+  }
+}
+
+=== lib/app/food_bootstrapper.dart ===
+import 'package:flutter/material.dart';
+
+import 'package:preplist/features/foods/repositories/food_repository.dart';
+import 'package:preplist/data/services/swiss_food_import_service.dart';
+
+class FoodBootstrapper extends StatefulWidget {
+  final Widget child;
+
+  const FoodBootstrapper({super.key, required this.child});
+
+  @override
+  State<FoodBootstrapper> createState() => _FoodBootstrapperState();
+}
+
+class _FoodBootstrapperState extends State<FoodBootstrapper> {
+  bool _loading = true;
+  bool _failed = false;
+
+  int _completed = 0;
+  int _total = 0;
+
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    setState(() {
+      _loading = true;
+      _failed = false;
+      _error = null;
+      _completed = 0;
+      _total = 0;
+    });
+
+    try {
+      final database = FoodRepository.instance;
+
+      if (await database.isImported()) {
+        if (!mounted) return;
+
+        setState(() => _loading = false);
+        return;
+      }
+
+      final importer = SwissFoodImportService();
+
+      await importer.importDatabase(
+        onProgress: (completed, total) {
+          if (!mounted) return;
+
+          setState(() {
+            _completed = completed;
+            _total = total;
+          });
+        },
+      );
+
+      if (!mounted) return;
+
+      setState(() => _loading = false);
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _loading = false;
+        _failed = true;
+        _error = error.toString();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_loading && !_failed) {
+      return widget.child;
+    }
+
+    final progress = _total == 0 ? null : _completed / _total;
+
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: Image.asset(
+                        'assets/icon/app_icon.png',
+                        width: 96,
+                        height: 96,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    _failed
+                        ? 'Could not download food database'
+                        : 'Preparing your food database',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _failed
+                        ? 'An internet connection is required for the '
+                              'initial download.'
+                        : 'Downloading the Swiss Food Composition Database. '
+                              'This is only required once.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  if (_loading) ...[
+                    LinearProgressIndicator(value: progress),
+                    const SizedBox(height: 12),
+                    Text(
+                      _total == 0
+                          ? 'Connecting to Swiss database...'
+                          : '$_completed / $_total foods',
+                    ),
+                  ],
+                  if (_failed) ...[
+                    Text(
+                      _error ?? 'Unknown error',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    FilledButton(
+                      onPressed: _initialize,
+                      child: const Text('Try again'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+=== lib/app/main_screen.dart ===
+import 'package:flutter/material.dart';
+import 'package:preplist/app/about_screen.dart';
+
+import 'package:preplist/features/meal_planning/screens/week_plan_tab.dart';
+import 'package:preplist/features/recipes/screens/recipes_tab.dart';
+import 'package:preplist/features/groceries/screens/groceries_tab.dart';
+import 'package:preplist/features/inventory/screens/inventory_tab.dart';
+
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
+
+  @override
+  State<MainScreen> createState() => _MainScreenState();
+}
+
+class _MainScreenState extends State<MainScreen> {
+  int _selectedIndex = 0;
+
+  static const List<Widget> _tabs = [
+    WeekPlanTab(),
+    RecipesTab(),
+    GroceriesTab(),
+    InventoryTab(),
+  ];
+
+  static const List<String> _titles = [
+    'Week Plan',
+    'Recipes',
+    'Groceries',
+    'Inventory',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_titles[_selectedIndex]),
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'about') {
+                Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const AboutScreen()));
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: 'about',
+                child: ListTile(
+                  leading: Icon(Icons.info_outline),
+                  title: Text('About PrepList'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: IndexedStack(index: _selectedIndex, children: _tabs),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month),
+            label: 'Plan',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.restaurant_menu_outlined),
+            selectedIcon: Icon(Icons.restaurant_menu),
+            label: 'Recipes',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.shopping_cart_outlined),
+            selectedIcon: Icon(Icons.shopping_cart),
+            label: 'Groceries',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.inventory_2_outlined),
+            selectedIcon: Icon(Icons.inventory_2),
+            label: 'Inventory',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+=== lib/core/constants/measurement_units.dart ===
+class MeasurementUnit {
+  final String value;
+  final String label;
+
+  const MeasurementUnit(this.value, this.label);
+}
+
+const List<MeasurementUnit> measurementUnits = [
+  MeasurementUnit('g', 'Grams (g)'),
+  MeasurementUnit('kg', 'Kilograms (kg)'),
+  MeasurementUnit('mg', 'Milligrams (mg)'),
+  MeasurementUnit('ml', 'Milliliters (ml)'),
+  MeasurementUnit('l', 'Liters (l)'),
+  MeasurementUnit('pcs', 'Pieces (pcs)'),
+  MeasurementUnit('tbsp', 'Tablespoon (tbsp)'),
+  MeasurementUnit('tsp', 'Teaspoon (tsp)'),
+  MeasurementUnit('cup', 'Cup'),
+  MeasurementUnit('slice', 'Slice'),
+  MeasurementUnit('pinch', 'Pinch'),
+  MeasurementUnit('clove', 'Clove'),
+  MeasurementUnit('serving', 'Serving'),
+];
+
+=== lib/core/database/app_database.dart ===
+import 'package:path/path.dart' as path;
+import 'package:sqflite/sqflite.dart';
+
+class AppDatabase {
+  AppDatabase._();
+
+  static final AppDatabase instance = AppDatabase._();
+
+  Database? _database;
+
+  Future<Database> get database async {
+    if (_database != null) return _database!;
+
+    final databasePath = await getDatabasesPath();
+
+    _database = await openDatabase(
+      path.join(databasePath, 'preplist.db'),
+      version: 8,
+      onConfigure: (db) async {
+        await db.execute('PRAGMA foreign_keys = ON');
+      },
+      onCreate: (db, version) async {
+        await _createMealsTable(db);
+        await _createRecipeTables(db);
+        await _createShoppingTables(db);
+        await _createInventoryUsageTable(db);
+        await _createFoodTables(db);
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await _createRecipeTables(db);
+        }
+
+        if (oldVersion < 3) {
+          await db.execute(
+            "ALTER TABLE meals ADD COLUMN item_type TEXT NOT NULL DEFAULT 'ingredient'",
+          );
+          await db.execute('ALTER TABLE meals ADD COLUMN recipe_id INTEGER');
+          await db.execute(
+            "ALTER TABLE meals ADD COLUMN quantity TEXT NOT NULL DEFAULT ''",
+          );
+          await db.execute(
+            "ALTER TABLE meals ADD COLUMN unit TEXT NOT NULL DEFAULT ''",
+          );
+        }
+
+        if (oldVersion < 4) {
+          await _createShoppingTables(db);
+        }
+
+        if (oldVersion >= 4 && oldVersion < 5) {
+          await db.execute(
+            'ALTER TABLE grocery_items '
+            'ADD COLUMN inventory_added INTEGER NOT NULL DEFAULT 0',
+          );
+        }
+
+        if (oldVersion < 6) {
+          await db.execute(
+            'ALTER TABLE recipe_ingredients ADD COLUMN food_id INTEGER',
+          );
+          await db.execute('ALTER TABLE meals ADD COLUMN food_id INTEGER');
+        }
+
+        if (oldVersion < 7) {
+          await _createInventoryUsageTable(db);
+        }
+
+        if (oldVersion < 8) {
+          await _createFoodTables(db);
+        }
+      },
+    );
+
+    return _database!;
+  }
+
+  Future<void> _createMealsTable(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE meals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        category TEXT NOT NULL,
+        name TEXT NOT NULL,
+        item_type TEXT NOT NULL DEFAULT 'ingredient',
+        recipe_id INTEGER,
+        food_id INTEGER,
+        quantity TEXT NOT NULL DEFAULT '',
+        unit TEXT NOT NULL DEFAULT ''
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX meals_date_index ON meals(date)
+    ''');
+  }
+
+  Future<void> _createRecipeTables(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE recipes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        instructions TEXT NOT NULL DEFAULT '',
+        prep_minutes INTEGER NOT NULL DEFAULT 0,
+        cook_minutes INTEGER NOT NULL DEFAULT 0,
+        servings INTEGER NOT NULL DEFAULT 1,
+        calories REAL NOT NULL DEFAULT 0,
+        protein REAL NOT NULL DEFAULT 0,
+        carbs REAL NOT NULL DEFAULT 0,
+        fat REAL NOT NULL DEFAULT 0
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE recipe_ingredients (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        recipe_id INTEGER NOT NULL,
+        food_id INTEGER,
+        name TEXT NOT NULL,
+        amount TEXT NOT NULL DEFAULT '',
+        unit TEXT NOT NULL DEFAULT '',
+        FOREIGN KEY (recipe_id)
+          REFERENCES recipes(id)
+          ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX recipe_ingredients_recipe_index
+      ON recipe_ingredients(recipe_id)
+    ''');
+  }
+
+  Future<void> _createShoppingTables(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE grocery_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_key TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        amount TEXT NOT NULL DEFAULT '',
+        unit TEXT NOT NULL DEFAULT '',
+        is_bought INTEGER NOT NULL DEFAULT 0,
+        inventory_added INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE inventory_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_key TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        amount TEXT NOT NULL DEFAULT '',
+        unit TEXT NOT NULL DEFAULT ''
+      )
+    ''');
+  }
+
+  Future<void> _createInventoryUsageTable(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE inventory_usage (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_key TEXT NOT NULL,
+        name TEXT NOT NULL,
+        amount TEXT NOT NULL,
+        unit TEXT NOT NULL DEFAULT '',
+        used_at TEXT NOT NULL,
+        is_undone INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX inventory_usage_date_index
+      ON inventory_usage(used_at)
+    ''');
+  }
+
+  Future<void> _createFoodTables(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE foods (
+        external_id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        synonyms TEXT NOT NULL DEFAULT '',
+        calories REAL NOT NULL DEFAULT 0,
+        protein REAL NOT NULL DEFAULT 0,
+        carbs REAL NOT NULL DEFAULT 0,
+        fat REAL NOT NULL DEFAULT 0
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX foods_name_index ON foods(name)
+    ''');
+
+    await db.execute('''
+      CREATE TABLE metadata (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    ''');
+  }
+}
+
+=== lib/data/api/swiss_food_api.dart ===
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
+class SwissFoodApi {
+  static const String _baseUrl =
+      'https://api.webapp.prod.blv.foodcase-services.com/BLV_WebApp_WS';
+
+  static const String _apiPath = '/webresources/BLV-api';
+
+  final http.Client _client;
+
+  SwissFoodApi({http.Client? client}) : _client = client ?? http.Client();
+
+  Future<String> fetchVersion() async {
+    final json = await _getJson('$_apiPath/versiondb');
+
+    if (json is Map) {
+      return (json['versiontext'] ?? json['idversion'] ?? 'unknown').toString();
+    }
+
+    return 'unknown';
+  }
+
+  Future<List<Map<String, dynamic>>> fetchFoodPage({
+    required int offset,
+    int limit = 100,
+  }) async {
+    final json = await _getJson(
+      '$_apiPath/foods',
+      query: {'lang': 'en', 'limit': '$limit', 'offset': '$offset'},
+    );
+
+    final items = _extractList(json);
+
+    return items
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> fetchFoodDetails(int id) async {
+    final json = await _getJson('$_apiPath/food/$id', query: {'lang': 'en'});
+
+    if (json is! Map) {
+      throw FormatException('Invalid food response for ID $id');
+    }
+
+    return Map<String, dynamic>.from(json);
+  }
+
+  Future<dynamic> _getJson(String path, {Map<String, String>? query}) async {
+    final uri = Uri.parse('$_baseUrl$path').replace(queryParameters: query);
+
+    Object? lastError;
+
+    for (var attempt = 0; attempt < 4; attempt++) {
+      try {
+        final response = await _client
+            .get(uri, headers: const {'Accept': 'application/json'})
+            .timeout(const Duration(seconds: 30));
+
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          return jsonDecode(utf8.decode(response.bodyBytes));
+        }
+
+        if (response.statusCode == 429 || response.statusCode >= 500) {
+          lastError = 'HTTP ${response.statusCode}: ${response.body}';
+          await Future.delayed(Duration(seconds: 2 * (attempt + 1)));
+          continue;
+        }
+
+        throw Exception(
+          'Swiss database returned HTTP ${response.statusCode}: '
+          '${response.body}',
+        );
+      } on TimeoutException catch (error) {
+        lastError = error;
+      } catch (error) {
+        if (attempt == 3) rethrow;
+        lastError = error;
+        await Future.delayed(Duration(seconds: 2 * (attempt + 1)));
+      }
+    }
+
+    throw Exception('Swiss database request failed: $lastError');
+  }
+
+  List<dynamic> _extractList(dynamic json) {
+    if (json is List) return json;
+
+    if (json is Map) {
+      for (final key in ['foods', 'items', 'data', 'results', 'content']) {
+        final value = json[key];
+        if (value is List) return value;
+      }
+    }
+
+    throw const FormatException(
+      'Could not find a food list in the Swiss database response.',
+    );
+  }
+
+  void close() {
+    _client.close();
+  }
+}
+
+=== lib/data/services/swiss_food_import_service.dart ===
+import 'package:preplist/data/api/swiss_food_api.dart';
+import 'package:preplist/features/foods/repositories/food_repository.dart';
+
+typedef ImportProgress = void Function(int completed, int total);
+
+class SwissFoodImportService {
+  final SwissFoodApi api;
+  final FoodRepository repository;
+
+  SwissFoodImportService({SwissFoodApi? api, FoodRepository? repository})
+    : api = api ?? SwissFoodApi(),
+      repository = repository ?? FoodRepository.instance;
+
+  Future<void> importDatabase({required ImportProgress onProgress}) async {
+    final version = await api.fetchVersion();
+
+    const pageSize = 100;
+    var offset = 0;
+
+    final foodList = <Map<String, dynamic>>[];
+
+    while (true) {
+      final page = await api.fetchFoodPage(offset: offset, limit: pageSize);
+
+      foodList.addAll(page);
+
+      if (page.length < pageSize) break;
+
+      offset += pageSize;
+    }
+
+    if (foodList.isEmpty) {
+      throw Exception('The Swiss database returned no foods.');
+    }
+
+    final ids = foodList.map(_extractId).whereType<int>().toList();
+
+    if (ids.isEmpty) {
+      throw Exception('No food IDs were found in the API response.');
+    }
+
+    final records = <Map<String, dynamic>>[];
+    var completed = 0;
+
+    onProgress(0, ids.length);
+
+    // A limited number of concurrent requests.
+    const workerCount = 5;
+    var nextIndex = 0;
+
+    Future<void> worker() async {
+      while (true) {
+        final index = nextIndex++;
+
+        if (index >= ids.length) return;
+
+        final id = ids[index];
+        final details = await api.fetchFoodDetails(id);
+
+        final record = _parseFood(details, id);
+
+        if (record != null) {
+          records.add(record);
+        }
+
+        completed++;
+        onProgress(completed, ids.length);
+      }
+    }
+
+    await Future.wait(List.generate(workerCount, (_) => worker()));
+
+    if (records.isEmpty) {
+      throw Exception('No valid food records were downloaded.');
+    }
+
+    await repository.replaceAllFoods(foods: records, version: version);
+  }
+
+  int? _extractId(Map<String, dynamic> food) {
+    final value = food['id'] ?? food['DBID'] ?? food['dbid'] ?? food['foodid'];
+
+    if (value is int) return value;
+    return int.tryParse(value?.toString() ?? '');
+  }
+
+  Map<String, dynamic>? _parseFood(Map<String, dynamic> food, int fallbackId) {
+    final id = _extractId(food) ?? fallbackId;
+
+    final name = _extractName(food);
+
+    if (name.isEmpty) return null;
+
+    final synonyms = _extractSynonyms(food);
+    final values = food['values'];
+
+    double calories = 0;
+    double protein = 0;
+    double carbs = 0;
+    double fat = 0;
+
+    if (values is List) {
+      for (final item in values) {
+        if (item is! Map) continue;
+
+        final value = _toDouble(item['value']);
+        if (value == null) continue;
+
+        final component = item['component'];
+        final componentMap = component is Map ? component : <String, dynamic>{};
+
+        final componentName =
+            '${componentMap['name'] ?? item['componentname'] ?? ''}'
+                .toLowerCase();
+
+        final componentCode = '${componentMap['code'] ?? item['code'] ?? ''}'
+            .toLowerCase();
+
+        final unit = '${item['unit'] ?? componentMap['unit'] ?? ''}'
+            .toLowerCase();
+
+        final searchable = '$componentName $componentCode';
+
+        if (_matches(searchable, ['protein', 'proteins', 'prot'])) {
+          protein = value;
+        } else if (_matches(searchable, [
+          'carbohydrate',
+          'carbohydrates',
+          'available carbohydrate',
+          'carb',
+          'cho',
+        ])) {
+          carbs = value;
+        } else if (_matches(searchable, [
+          'fat',
+          'total fat',
+          'lipid',
+          'lipids',
+        ])) {
+          fat = value;
+        } else if (_matches(searchable, ['energy', 'ener'])) {
+          calories = unit.contains('kj') ? value / 4.184 : value;
+        }
+      }
+    }
+
+    return {
+      'external_id': id,
+      'name': name,
+      'synonyms': synonyms.join('|'),
+      'calories': calories,
+      'protein': protein,
+      'carbs': carbs,
+      'fat': fat,
+    };
+  }
+
+  String _extractName(Map<String, dynamic> food) {
+    final direct = food['name'];
+
+    if (direct is String && direct.trim().isNotEmpty) {
+      return direct.trim();
+    }
+
+    final names = food['names'];
+
+    if (names is List) {
+      for (final item in names) {
+        if (item is String && item.trim().isNotEmpty) {
+          return item.trim();
+        }
+
+        if (item is Map) {
+          final value = item['name'] ?? item['value'];
+          if (value != null && value.toString().trim().isNotEmpty) {
+            return value.toString().trim();
+          }
+        }
+      }
+    }
+
+    if (names is Map) {
+      final english = names['en'];
+      if (english != null) return english.toString();
+    }
+
+    return '';
+  }
+
+  List<String> _extractSynonyms(Map<String, dynamic> food) {
+    final value = food['synonyms'] ?? food['synonymes'];
+
+    if (value is List) {
+      return value
+          .map((item) {
+            if (item is Map) {
+              return (item['name'] ?? item['value'] ?? '').toString();
+            }
+            return item.toString();
+          })
+          .where((item) => item.trim().isNotEmpty)
+          .toList();
+    }
+
+    return [];
+  }
+
+  bool _matches(String text, List<String> terms) {
+    return terms.any((term) => text.contains(term));
+  }
+
+  double? _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value == null) return null;
+
+    return double.tryParse(value.toString().replaceAll(',', '.'));
+  }
+}
+
+=== lib/features/foods/models/swiss_food.dart ===
+class SwissFood {
+  final int id;
+  final String name;
+  final List<String> synonyms;
+
+  // Nutritional values per 100 g.
+  final double calories;
+  final double protein;
+  final double carbs;
+  final double fat;
+
+  const SwissFood({
+    required this.id,
+    required this.name,
+    this.synonyms = const [],
+    this.calories = 0,
+    this.protein = 0,
+    this.carbs = 0,
+    this.fat = 0,
+  });
+
+  factory SwissFood.fromMap(Map<String, Object?> map) {
+    return SwissFood(
+      id: _toInt(map['external_id']),
+      name: map['name']?.toString() ?? '',
+      synonyms: (map['synonyms']?.toString() ?? '')
+          .split('|')
+          .where((value) => value.isNotEmpty)
+          .toList(),
+      calories: _toDouble(map['calories']),
+      protein: _toDouble(map['protein']),
+      carbs: _toDouble(map['carbs']),
+      fat: _toDouble(map['fat']),
+    );
+  }
+
+  static int _toInt(dynamic value) {
+    if (value is int) return value;
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  static double _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  double caloriesFor(double grams) => calories * grams / 100;
+
+  double proteinFor(double grams) => protein * grams / 100;
+
+  double carbsFor(double grams) => carbs * grams / 100;
+
+  double fatFor(double grams) => fat * grams / 100;
+}
+
+=== lib/features/foods/repositories/food_repository.dart ===
+import 'package:sqflite/sqflite.dart';
+
+import 'package:preplist/core/database/app_database.dart';
+import 'package:preplist/features/foods/models/swiss_food.dart';
+
+class FoodRepository {
+  FoodRepository._();
+
+  static final FoodRepository instance = FoodRepository._();
+
+  Future<bool> isImported() async {
+    final db = await AppDatabase.instance.database;
+    final result = await db.query(
+      'metadata',
+      columns: ['value'],
+      where: 'key = ?',
+      whereArgs: ['imported'],
+      limit: 1,
+    );
+
+    return result.isNotEmpty && result.first['value'] == '1';
+  }
+
+  Future<String?> getImportedVersion() async {
+    final db = await AppDatabase.instance.database;
+    final result = await db.query(
+      'metadata',
+      columns: ['value'],
+      where: 'key = ?',
+      whereArgs: ['version'],
+      limit: 1,
+    );
+
+    return result.isEmpty ? null : result.first['value'] as String?;
+  }
+
+  Future<int> getFoodCount() async {
+    final db = await AppDatabase.instance.database;
+    final result = await db.rawQuery('SELECT COUNT(*) AS count FROM foods');
+    return (result.first['count'] as int?) ?? 0;
+  }
+
+  Future<SwissFood?> getFood(int id) async {
+    final db = await AppDatabase.instance.database;
+    final result = await db.query(
+      'foods',
+      where: 'external_id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+
+    return result.isEmpty ? null : SwissFood.fromMap(result.first);
+  }
+
+  Future<List<SwissFood>> searchFoods(String query, {int limit = 50}) async {
+    final db = await AppDatabase.instance.database;
+    final term = '%${query.trim()}%';
+
+    final results = await db.query(
+      'foods',
+      where: 'name LIKE ? OR synonyms LIKE ?',
+      whereArgs: [term, term],
+      orderBy: 'name COLLATE NOCASE',
+      limit: limit,
+    );
+
+    return results.map(SwissFood.fromMap).toList();
+  }
+
+  Future<void> replaceAllFoods({
+    required List<Map<String, dynamic>> foods,
+    required String version,
+  }) async {
+    final db = await AppDatabase.instance.database;
+
+    await db.transaction((txn) async {
+      final batch = txn.batch();
+
+      batch.delete('foods');
+
+      for (final food in foods) {
+        batch.insert('foods', food);
+      }
+
+      batch.insert('metadata', {
+        'key': 'version',
+        'value': version,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+      batch.insert('metadata', {
+        'key': 'imported',
+        'value': '1',
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+      await batch.commit(noResult: true);
+    });
+  }
+}
+
+=== lib/features/foods/widgets/food_picker_dialog.dart ===
+import 'package:flutter/material.dart';
+
+import 'package:preplist/features/foods/repositories/food_repository.dart';
+import 'package:preplist/features/foods/models/swiss_food.dart';
+
+class FoodPickerDialog extends StatefulWidget {
+  const FoodPickerDialog({super.key});
+
+  @override
+  State<FoodPickerDialog> createState() => _FoodPickerDialogState();
+}
+
+class _FoodPickerDialogState extends State<FoodPickerDialog> {
+  final _controller = TextEditingController();
+
+  List<SwissFood> _foods = [];
+  bool _searching = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _search(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() => _foods = []);
+      return;
+    }
+
+    setState(() => _searching = true);
+
+    try {
+      final results = await FoodRepository.instance.searchFoods(query);
+
+      if (!mounted) return;
+
+      setState(() {
+        _foods = results;
+        _searching = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _foods = [];
+        _searching = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Select food'),
+      content: SizedBox(
+        width: 500,
+        height: 450,
+        child: Column(
+          children: [
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              decoration: const InputDecoration(
+                hintText: 'Search foods...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+              onChanged: _search,
+            ),
+            const SizedBox(height: 12),
+            if (_searching) const LinearProgressIndicator(),
+            Expanded(
+              child: _foods.isEmpty
+                  ? Center(
+                      child: Text(
+                        _controller.text.isEmpty
+                            ? 'Start typing to search foods'
+                            : 'No foods found',
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: _foods.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final food = _foods[index];
+
+                        return ListTile(
+                          title: Text(food.name),
+                          subtitle: Text(
+                            '${food.calories.toStringAsFixed(0)} kcal'
+                            ' · P ${food.protein.toStringAsFixed(1)} g'
+                            ' · C ${food.carbs.toStringAsFixed(1)} g'
+                            ' · F ${food.fat.toStringAsFixed(1)} g'
+                            ' / 100 g',
+                          ),
+                          onTap: () {
+                            Navigator.pop(context, food);
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+      ],
+    );
+  }
+}
+
+=== lib/features/groceries/repositories/grocery_repository.dart ===
+import 'package:preplist/core/database/app_database.dart';
+import 'package:preplist/features/recipes/models/recipe.dart';
+
+import 'package:preplist/features/meal_planning/repositories/meal_repository.dart';
+import 'package:preplist/features/recipes/repositories/recipe_repository.dart';
+
+class GroceryItem {
+  final int id;
+  final String itemKey;
+  final String name;
+  final String amount;
+  final String unit;
+  final bool isBought;
+  final bool inventoryAdded;
+
+  const GroceryItem({
+    required this.id,
+    required this.itemKey,
+    required this.name,
+    required this.amount,
+    required this.unit,
+    required this.isBought,
+    required this.inventoryAdded,
+  });
+
+  factory GroceryItem.fromMap(Map<String, dynamic> map) {
+    return GroceryItem(
+      id: map['id'] as int,
+      itemKey: map['item_key'] as String,
+      name: map['name'] as String,
+      amount: map['amount'] as String? ?? '',
+      unit: map['unit'] as String? ?? '',
+      isBought: (map['is_bought'] as int? ?? 0) == 1,
+      inventoryAdded: (map['inventory_added'] as int? ?? 0) == 1,
+    );
+  }
+}
+
+class _GroceryDraft {
+  final String name;
+  final String unit;
+  double? numericAmount;
+  String amount;
+
+  _GroceryDraft({
+    required this.name,
+    required this.unit,
+    required this.amount,
+    this.numericAmount,
+  });
+}
+
+class GroceryRepository {
+  final AppDatabase _database = AppDatabase.instance;
+  final MealRepository _mealRepository = MealRepository();
+  final RecipeRepository _recipeRepository = RecipeRepository();
+
+  String _normalize(String value) => value.trim().toLowerCase();
+
+  String _makeKey(String name, String unit) {
+    return '${_normalize(name)}|${_normalize(unit)}';
+  }
+
+  double? _parseAmount(String value) {
+    return double.tryParse(value.trim().replaceAll(',', '.'));
+  }
+
+  String _formatAmount(double value) {
+    if (value == value.roundToDouble()) {
+      return value.toInt().toString();
+    }
+
+    return value.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
+  }
+
+  Future<List<GroceryItem>> getAll() async {
+    final db = await _database.database;
+
+    final rows = await db.query(
+      'grocery_items',
+      orderBy: 'is_bought ASC, name COLLATE NOCASE ASC',
+    );
+
+    return rows.map(GroceryItem.fromMap).toList();
+  }
+
+  Future<void> syncFromFuturePlan() async {
+    final meals = await _mealRepository.getAll();
+    final recipes = <int, Recipe>{};
+
+    final today = _dateKey(DateTime.now());
+    final futureMeals = meals.where((meal) => meal.date.compareTo(today) >= 0);
+
+    final grouped = <String, _GroceryDraft>{};
+
+    void addIngredient(String name, String amount, String unit) {
+      final cleanName = name.trim();
+      if (cleanName.isEmpty) return;
+
+      final cleanUnit = unit.trim();
+      final key = _makeKey(cleanName, cleanUnit);
+      final parsedAmount = _parseAmount(amount);
+      final existing = grouped[key];
+
+      if (existing == null) {
+        grouped[key] = _GroceryDraft(
+          name: cleanName,
+          unit: cleanUnit,
+          amount: amount.trim(),
+          numericAmount: parsedAmount,
+        );
+        return;
+      }
+
+      if (existing.numericAmount != null && parsedAmount != null) {
+        existing.numericAmount = existing.numericAmount! + parsedAmount;
+        existing.amount = _formatAmount(existing.numericAmount!);
+      } else if (existing.amount.isEmpty) {
+        existing.amount = amount.trim();
+      }
+    }
+
+    for (final meal in futureMeals) {
+      if (meal.isRecipe && meal.recipeId != null) {
+        final recipeId = meal.recipeId!;
+
+        final recipe =
+            recipes[recipeId] ?? await _recipeRepository.getById(recipeId);
+
+        if (recipe == null) continue;
+
+        recipes[recipeId] = recipe;
+
+        final multiplier = _parseAmount(meal.quantity) ?? 1;
+
+        for (final ingredient in recipe.ingredients) {
+          final baseAmount = _parseAmount(ingredient.amount);
+
+          final amount = baseAmount == null
+              ? ingredient.amount
+              : _formatAmount(baseAmount * multiplier);
+
+          addIngredient(ingredient.name, amount, ingredient.unit);
+        }
+      } else {
+        addIngredient(meal.name, meal.quantity, meal.unit);
+      }
+    }
+
+    final db = await _database.database;
+
+    await db.transaction((txn) async {
+      final existingRows = await txn.query('grocery_items');
+
+      final existingByKey = <String, Map<String, dynamic>>{
+        for (final row in existingRows) row['item_key'] as String: row,
+      };
+
+      // Get items already available in inventory.
+      final inventoryRows = await txn.query('inventory_items');
+
+      final inventoryKeys = inventoryRows
+          .map((row) => row['item_key'] as String)
+          .toSet();
+
+      // Remove old, unbought grocery items.
+      await txn.delete('grocery_items', where: 'is_bought = 0');
+
+      for (final entry in grouped.entries) {
+        final key = entry.key;
+        final draft = entry.value;
+        final previous = existingByKey[key];
+
+        // Don't recreate items already in inventory.
+        if (inventoryKeys.contains(key)) continue;
+
+        final amount = draft.numericAmount == null
+            ? draft.amount
+            : _formatAmount(draft.numericAmount!);
+
+        if (previous != null && (previous['is_bought'] as int? ?? 0) == 1) {
+          await txn.update(
+            'grocery_items',
+            {'name': draft.name, 'amount': amount, 'unit': draft.unit},
+            where: 'item_key = ?',
+            whereArgs: [key],
+          );
+        } else {
+          await txn.insert('grocery_items', {
+            'item_key': key,
+            'name': draft.name,
+            'amount': amount,
+            'unit': draft.unit,
+            'is_bought': 0,
+            'inventory_added': 0,
+          });
+        }
+      }
+    });
+  }
+
+  Future<void> toggleBought(int groceryId) async {
+    final db = await _database.database;
+
+    await db.rawUpdate(
+      '''
+      UPDATE grocery_items
+      SET is_bought = CASE WHEN is_bought = 1 THEN 0 ELSE 1 END
+      WHERE id = ?
+      ''',
+      [groceryId],
+    );
+  }
+
+  Future<void> addBoughtToInventory(int groceryId) async {
+    final db = await _database.database;
+
+    await db.transaction((txn) async {
+      final rows = await txn.query(
+        'grocery_items',
+        where: 'id = ?',
+        whereArgs: [groceryId],
+        limit: 1,
+      );
+
+      if (rows.isEmpty) return;
+
+      final grocery = rows.first;
+
+      final isBought = (grocery['is_bought'] as int? ?? 0) == 1;
+      final alreadyAdded = (grocery['inventory_added'] as int? ?? 0) == 1;
+
+      if (!isBought || alreadyAdded) return;
+
+      final itemKey = grocery['item_key'] as String;
+      final amount = grocery['amount'] as String? ?? '';
+      final unit = grocery['unit'] as String? ?? '';
+
+      final inventoryRows = await txn.query(
+        'inventory_items',
+        where: 'item_key = ?',
+        whereArgs: [itemKey],
+        limit: 1,
+      );
+
+      if (inventoryRows.isEmpty) {
+        await txn.insert('inventory_items', {
+          'item_key': itemKey,
+          'name': grocery['name'],
+          'amount': amount,
+          'unit': unit,
+        });
+      } else {
+        final oldAmount = inventoryRows.first['amount'] as String? ?? '';
+        final oldNumber = _parseAmount(oldAmount);
+        final newNumber = _parseAmount(amount);
+
+        final combinedAmount = oldNumber != null && newNumber != null
+            ? _formatAmount(oldNumber + newNumber)
+            : amount.isNotEmpty
+            ? amount
+            : oldAmount;
+
+        await txn.update(
+          'inventory_items',
+          {'amount': combinedAmount, 'unit': unit},
+          where: 'item_key = ?',
+          whereArgs: [itemKey],
+        );
+      }
+
+      // Remove the item from groceries after inventory transfer.
+      await txn.delete(
+        'grocery_items',
+        where: 'id = ?',
+        whereArgs: [groceryId],
+      );
+    });
+  }
+
+  String _dateKey(DateTime date) {
+    final year = date.year.toString().padLeft(4, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+
+    return '$year-$month-$day';
+  }
+}
+
+=== lib/features/groceries/screens/groceries_tab.dart ===
+import 'package:flutter/material.dart';
+
+import 'package:preplist/features/groceries/repositories/grocery_repository.dart';
+
+class GroceriesTab extends StatefulWidget {
+  const GroceriesTab({super.key});
+
+  @override
+  State<GroceriesTab> createState() => _GroceriesTabState();
+}
+
+class _GroceriesTabState extends State<GroceriesTab> {
+  final GroceryRepository _repository = GroceryRepository();
+
+  List<GroceryItem> _items = [];
+  bool _loading = true;
+  String? _error;
+
+  List<GroceryItem> get _toBuy =>
+      _items.where((item) => !item.isBought).toList();
+
+  List<GroceryItem> get _bought =>
+      _items.where((item) => item.isBought).toList();
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      await _repository.syncFromFuturePlan();
+      final items = await _repository.getAll();
+
+      if (!mounted) return;
+
+      setState(() {
+        _items = items;
+        _loading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _error = error.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _toggleBought(GroceryItem item) async {
+    try {
+      await _repository.toggleBought(item.id);
+      await _refresh();
+    } catch (error) {
+      if (!mounted) return;
+      _showMessage('Could not update grocery: $error');
+    }
+  }
+
+  Future<void> _addToInventory(GroceryItem item) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Add to inventory?'),
+          content: Text(
+            'Add ${item.name} (${_amountLabel(item)}) to your inventory?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Add to inventory'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || confirmed != true) return;
+
+    try {
+      await _repository.addBoughtToInventory(item.id);
+      await _refresh();
+
+      if (!mounted) return;
+
+      _showMessage('${item.name} added to Inventory');
+    } catch (error) {
+      if (!mounted) return;
+      _showMessage('Could not update inventory: $error');
+    }
+  }
+
+  String _amountLabel(GroceryItem item) {
+    return [
+      item.amount,
+      item.unit,
+    ].where((value) => value.isNotEmpty).join(' ');
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${_toBuy.length} items to buy',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              IconButton(
+                onPressed: _loading ? null : _refresh,
+                tooltip: 'Refresh from Week Plan',
+                icon: const Icon(Icons.refresh),
+              ),
+            ],
+          ),
+        ),
+        if (_loading)
+          const Expanded(child: Center(child: CircularProgressIndicator()))
+        else if (_error != null)
+          Expanded(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Could not load groceries:\n$_error'),
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      onPressed: _refresh,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          )
+        else
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _refresh,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                children: [
+                  _buildSectionHeader(title: 'To buy', count: _toBuy.length),
+                  if (_toBuy.isEmpty)
+                    _buildEmptyMessage('Nothing left to buy.')
+                  else
+                    ..._toBuy.map(_buildToBuyItem),
+                  const SizedBox(height: 24),
+                  _buildSectionHeader(title: 'Bought', count: _bought.length),
+                  if (_bought.isEmpty)
+                    _buildEmptyMessage('Bought items will appear here.')
+                  else
+                    ..._bought.map(_buildBoughtItem),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSectionHeader({required String title, required int count}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Text('$count', style: Theme.of(context).textTheme.bodySmall),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyMessage(String message) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Text(
+        message,
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+    );
+  }
+
+  Widget _buildToBuyItem(GroceryItem item) {
+    final amount = _amountLabel(item);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: CheckboxListTile(
+        value: false,
+        controlAffinity: ListTileControlAffinity.leading,
+        title: Text(item.name),
+        subtitle: amount.isEmpty ? null : Text(amount),
+        secondary: const Icon(Icons.shopping_cart_outlined),
+        onChanged: (_) => _toggleBought(item),
+      ),
+    );
+  }
+
+  Widget _buildBoughtItem(GroceryItem item) {
+    final amount = _amountLabel(item);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          children: [
+            CheckboxListTile(
+              value: true,
+              controlAffinity: ListTileControlAffinity.leading,
+              title: Text(
+                item.name,
+                style: const TextStyle(decoration: TextDecoration.lineThrough),
+              ),
+              subtitle: amount.isEmpty ? null : Text(amount),
+              secondary: const Icon(Icons.check_circle_outline),
+              onChanged: (_) => _toggleBought(item),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Row(
+                children: [
+                  if (item.inventoryAdded)
+                    const Expanded(
+                      child: Row(
+                        children: [
+                          Icon(Icons.inventory_2_outlined, size: 17),
+                          SizedBox(width: 6),
+                          Text('In inventory'),
+                        ],
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: () => _addToInventory(item),
+                          icon: const Icon(Icons.inventory_2_outlined),
+                          label: const Text('Add to inventory'),
+                        ),
+                      ),
+                    ),
+                  TextButton(
+                    onPressed: () => _toggleBought(item),
+                    child: const Text('Undo'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+=== lib/features/inventory/repositories/inventory_repository.dart ===
+import 'package:preplist/core/database/app_database.dart';
+
+class InventoryItem {
+  final int id;
+  final String itemKey;
+  final String name;
+  final String amount;
+  final String unit;
+
+  const InventoryItem({
+    required this.id,
+    required this.itemKey,
+    required this.name,
+    required this.amount,
+    required this.unit,
+  });
+
+  factory InventoryItem.fromMap(Map<String, dynamic> map) {
+    return InventoryItem(
+      id: map['id'] as int,
+      itemKey: map['item_key'] as String,
+      name: map['name'] as String,
+      amount: map['amount'] as String? ?? '',
+      unit: map['unit'] as String? ?? '',
+    );
+  }
+}
+
+class InventoryUsage {
+  final int id;
+  final String itemKey;
+  final String name;
+  final String amount;
+  final String unit;
+  final DateTime usedAt;
+  final bool isUndone;
+
+  const InventoryUsage({
+    required this.id,
+    required this.itemKey,
+    required this.name,
+    required this.amount,
+    required this.unit,
+    required this.usedAt,
+    required this.isUndone,
+  });
+
+  factory InventoryUsage.fromMap(Map<String, dynamic> map) {
+    return InventoryUsage(
+      id: map['id'] as int,
+      itemKey: map['item_key'] as String,
+      name: map['name'] as String,
+      amount: map['amount'] as String,
+      unit: map['unit'] as String? ?? '',
+      usedAt: DateTime.parse(map['used_at'] as String),
+      isUndone: (map['is_undone'] as int? ?? 0) == 1,
+    );
+  }
+}
+
+class InventoryRepository {
+  final AppDatabase _database = AppDatabase.instance;
+
+  String _makeKey(String name, String unit) {
+    return '${name.trim().toLowerCase()}|${unit.trim().toLowerCase()}';
+  }
+
+  double? _parseAmount(String value) {
+    return double.tryParse(value.trim().replaceAll(',', '.'));
+  }
+
+  String _formatAmount(double value) {
+    if (value == value.roundToDouble()) {
+      return value.toInt().toString();
+    }
+
+    return value.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
+  }
+
+  Future<List<InventoryItem>> getAll() async {
+    final db = await _database.database;
+
+    final rows = await db.query(
+      'inventory_items',
+      orderBy: 'name COLLATE NOCASE ASC',
+    );
+
+    return rows.map(InventoryItem.fromMap).toList();
+  }
+
+  Future<List<InventoryUsage>> getRecentUsages({int limit = 10}) async {
+    final db = await _database.database;
+
+    final rows = await db.query(
+      'inventory_usage',
+      where: 'is_undone = 0',
+      orderBy: 'used_at DESC',
+      limit: limit,
+    );
+
+    return rows.map(InventoryUsage.fromMap).toList();
+  }
+
+  Future<void> add({
+    required String name,
+    required String amount,
+    required String unit,
+  }) async {
+    final cleanName = name.trim();
+    final cleanAmount = amount.trim();
+    final cleanUnit = unit.trim();
+
+    if (cleanName.isEmpty) return;
+
+    final db = await _database.database;
+    final key = _makeKey(cleanName, cleanUnit);
+
+    await db.transaction((txn) async {
+      final rows = await txn.query(
+        'inventory_items',
+        where: 'item_key = ?',
+        whereArgs: [key],
+        limit: 1,
+      );
+
+      if (rows.isEmpty) {
+        await txn.insert('inventory_items', {
+          'item_key': key,
+          'name': cleanName,
+          'amount': cleanAmount,
+          'unit': cleanUnit,
+        });
+        return;
+      }
+
+      final oldAmount = rows.first['amount'] as String? ?? '';
+      final oldNumber = _parseAmount(oldAmount);
+      final newNumber = _parseAmount(cleanAmount);
+
+      final combined = oldNumber != null && newNumber != null
+          ? _formatAmount(oldNumber + newNumber)
+          : cleanAmount.isNotEmpty
+          ? cleanAmount
+          : oldAmount;
+
+      await txn.update(
+        'inventory_items',
+        {'amount': combined},
+        where: 'item_key = ?',
+        whereArgs: [key],
+      );
+    });
+  }
+
+  Future<void> consume(int id, double amountUsed) async {
+    if (amountUsed <= 0) {
+      throw ArgumentError('Amount used must be greater than zero.');
+    }
+
+    final db = await _database.database;
+
+    await db.transaction((txn) async {
+      final rows = await txn.query(
+        'inventory_items',
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+
+      if (rows.isEmpty) return;
+
+      final item = rows.first;
+
+      final currentAmount = _parseAmount(item['amount'] as String? ?? '');
+
+      if (currentAmount == null) {
+        throw StateError('This inventory item does not have a numeric amount.');
+      }
+
+      if (amountUsed > currentAmount) {
+        throw ArgumentError('You cannot use more than the available amount.');
+      }
+
+      final itemKey = item['item_key'] as String;
+      final name = item['name'] as String;
+      final unit = item['unit'] as String? ?? '';
+
+      // Save usage history before changing inventory.
+      await txn.insert('inventory_usage', {
+        'item_key': itemKey,
+        'name': name,
+        'amount': _formatAmount(amountUsed),
+        'unit': unit,
+        'used_at': DateTime.now().toIso8601String(),
+        'is_undone': 0,
+      });
+
+      final remaining = currentAmount - amountUsed;
+
+      if (remaining <= 0.000001) {
+        await txn.delete('inventory_items', where: 'id = ?', whereArgs: [id]);
+      } else {
+        await txn.update(
+          'inventory_items',
+          {'amount': _formatAmount(remaining)},
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+      }
+    });
+  }
+
+  Future<void> undoUsage(int usageId) async {
+    final db = await _database.database;
+
+    await db.transaction((txn) async {
+      final usageRows = await txn.query(
+        'inventory_usage',
+        where: 'id = ?',
+        whereArgs: [usageId],
+        limit: 1,
+      );
+
+      if (usageRows.isEmpty) return;
+
+      final usage = usageRows.first;
+
+      if ((usage['is_undone'] as int? ?? 0) == 1) return;
+
+      final itemKey = usage['item_key'] as String;
+      final name = usage['name'] as String;
+      final unit = usage['unit'] as String? ?? '';
+      final amount = usage['amount'] as String;
+
+      final amountUsed = _parseAmount(amount);
+
+      if (amountUsed == null || amountUsed <= 0) {
+        throw StateError('Invalid usage amount.');
+      }
+
+      final inventoryRows = await txn.query(
+        'inventory_items',
+        where: 'item_key = ?',
+        whereArgs: [itemKey],
+        limit: 1,
+      );
+
+      if (inventoryRows.isEmpty) {
+        await txn.insert('inventory_items', {
+          'item_key': itemKey,
+          'name': name,
+          'amount': _formatAmount(amountUsed),
+          'unit': unit,
+        });
+      } else {
+        final oldAmount = inventoryRows.first['amount'] as String? ?? '';
+        final oldNumber = _parseAmount(oldAmount);
+
+        if (oldNumber == null) {
+          throw StateError(
+            'Cannot restore usage because the current inventory amount is not numeric.',
+          );
+        }
+
+        await txn.update(
+          'inventory_items',
+          {'amount': _formatAmount(oldNumber + amountUsed)},
+          where: 'item_key = ?',
+          whereArgs: [itemKey],
+        );
+      }
+
+      await txn.update(
+        'inventory_usage',
+        {'is_undone': 1},
+        where: 'id = ?',
+        whereArgs: [usageId],
+      );
+    });
+  }
+
+  Future<void> markUsed(int id) async {
+    final db = await _database.database;
+
+    await db.delete('inventory_items', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> delete(int id) => markUsed(id);
+}
+
+=== lib/features/inventory/screens/inventory_tab.dart ===
+import 'package:flutter/material.dart';
+
+import 'package:preplist/core/constants/measurement_units.dart';
+import 'package:preplist/features/inventory/repositories/inventory_repository.dart';
+
+class InventoryTab extends StatefulWidget {
+  const InventoryTab({super.key});
+
+  @override
+  State<InventoryTab> createState() => _InventoryTabState();
+}
+
+class _InventoryTabState extends State<InventoryTab> {
+  final InventoryRepository _repository = InventoryRepository();
+
+  List<InventoryItem> _items = [];
+  List<InventoryUsage> _recentUsages = [];
+
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+
+    try {
+      final results = await Future.wait([
+        _repository.getAll(),
+        _repository.getRecentUsages(),
+      ]);
+
+      if (!mounted) return;
+
+      setState(() {
+        _items = results[0] as List<InventoryItem>;
+        _recentUsages = results[1] as List<InventoryUsage>;
+        _loading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _error = error.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _addItem() async {
+    final input = await showDialog<_InventoryInput>(
+      context: context,
+      builder: (_) => const _AddInventoryDialog(),
+    );
+
+    if (input == null) return;
+
+    await _repository.add(
+      name: input.name,
+      amount: input.amount,
+      unit: input.unit,
+    );
+
+    await _refresh();
+  }
+
+  Future<void> _consumeItem(InventoryItem item) async {
+    final available = double.tryParse(item.amount.trim().replaceAll(',', '.'));
+
+    if (available == null || available <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This item has no usable numeric quantity.'),
+        ),
+      );
+      return;
+    }
+
+    final amountUsed = await showDialog<double>(
+      context: context,
+      builder: (_) => _ConsumeInventoryDialog(item: item, available: available),
+    );
+
+    if (amountUsed == null) return;
+
+    try {
+      await _repository.consume(item.id, amountUsed);
+
+      if (!mounted) return;
+
+      await _refresh();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Used ${_formatAmount(amountUsed)} ${item.unit} of ${item.name}.',
+          ),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () {
+              _undoLatestUsage();
+            },
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
+  Future<void> _undoUsage(InventoryUsage usage) async {
+    try {
+      await _repository.undoUsage(usage.id);
+
+      if (!mounted) return;
+
+      await _refresh();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${usage.name} restored to inventory.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
+  Future<void> _undoLatestUsage() async {
+    if (_recentUsages.isEmpty) return;
+
+    await _undoUsage(_recentUsages.first);
+  }
+
+  String _formatAmount(double value) {
+    if (value == value.roundToDouble()) {
+      return value.toInt().toString();
+    }
+
+    return value.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
+  }
+
+  String _formatDate(DateTime date) {
+    final local = date.toLocal();
+
+    final day = local.day.toString().padLeft(2, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final year = local.year.toString();
+
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+
+    return '$day.$month.$year · $hour:$minute';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${_items.length} items in inventory',
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+              IconButton(
+                onPressed: _loading ? null : _refresh,
+                tooltip: 'Refresh',
+                icon: const Icon(Icons.refresh),
+              ),
+              IconButton(
+                onPressed: _addItem,
+                tooltip: 'Add item',
+                icon: const Icon(Icons.add),
+              ),
+            ],
+          ),
+        ),
+        if (_loading)
+          const Expanded(child: Center(child: CircularProgressIndicator()))
+        else if (_error != null)
+          Expanded(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text('Could not load inventory:\n$_error'),
+              ),
+            ),
+          )
+        else
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _refresh,
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 24),
+                children: [
+                  if (_items.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 32),
+                      child: Center(
+                        child: Text(
+                          'Your inventory is empty.\nBought groceries will appear here.',
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    )
+                  else
+                    ..._items.map((item) {
+                      final quantity = [
+                        item.amount,
+                        item.unit,
+                      ].where((value) => value.isNotEmpty).join(' ');
+
+                      return ListTile(
+                        leading: const Icon(Icons.kitchen_outlined),
+                        title: Text(item.name),
+                        subtitle: quantity.isEmpty
+                            ? null
+                            : Text('$quantity available'),
+                        trailing: IconButton(
+                          tooltip: 'Use some amount',
+                          icon: const Icon(Icons.remove_circle_outline),
+                          onPressed: () => _consumeItem(item),
+                        ),
+                        onTap: () => _consumeItem(item),
+                      );
+                    }),
+                  if (_recentUsages.isNotEmpty) ...[
+                    const Divider(height: 32),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.history, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Recently used',
+                            style: theme.textTheme.titleMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                    ..._recentUsages.map((usage) {
+                      final quantity = [
+                        usage.amount,
+                        usage.unit,
+                      ].where((value) => value.isNotEmpty).join(' ');
+
+                      return ListTile(
+                        leading: const Icon(Icons.history),
+                        title: Text(usage.name),
+                        subtitle: Text(
+                          '$quantity · ${_formatDate(usage.usedAt)}',
+                        ),
+                        trailing: TextButton.icon(
+                          onPressed: () => _undoUsage(usage),
+                          icon: const Icon(Icons.undo, size: 18),
+                          label: const Text('Undo'),
+                        ),
+                      );
+                    }),
+                  ],
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _InventoryInput {
+  final String name;
+  final String amount;
+  final String unit;
+
+  const _InventoryInput({
+    required this.name,
+    required this.amount,
+    required this.unit,
+  });
+}
+
+class _AddInventoryDialog extends StatefulWidget {
+  const _AddInventoryDialog();
+
+  @override
+  State<_AddInventoryDialog> createState() => _AddInventoryDialogState();
+}
+
+class _AddInventoryDialogState extends State<_AddInventoryDialog> {
+  final _nameController = TextEditingController();
+  final _amountController = TextEditingController();
+
+  String _selectedUnit = 'g';
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final name = _nameController.text.trim();
+
+    if (name.isEmpty) return;
+
+    Navigator.of(context).pop(
+      _InventoryInput(
+        name: name,
+        amount: _amountController.text.trim(),
+        unit: _selectedUnit,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      scrollable: true,
+      title: const Text('Add inventory item'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _nameController,
+            autofocus: true,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              labelText: 'Ingredient name',
+              hintText: 'Chicken breast',
+            ),
+            onSubmitted: (_) => _submit(),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _amountController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Amount',
+              hintText: '500',
+            ),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: _selectedUnit,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Unit'),
+            items: measurementUnits.map((unit) {
+              return DropdownMenuItem(
+                value: unit.value,
+                child: Text(unit.label),
+              );
+            }).toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() {
+                  _selectedUnit = value;
+                });
+              }
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(onPressed: _submit, child: const Text('Add')),
+      ],
+    );
+  }
+}
+
+class _ConsumeInventoryDialog extends StatefulWidget {
+  final InventoryItem item;
+  final double available;
+
+  const _ConsumeInventoryDialog({required this.item, required this.available});
+
+  @override
+  State<_ConsumeInventoryDialog> createState() =>
+      _ConsumeInventoryDialogState();
+}
+
+class _ConsumeInventoryDialogState extends State<_ConsumeInventoryDialog> {
+  final _amountController = TextEditingController();
+
+  String? _error;
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final amount = double.tryParse(
+      _amountController.text.trim().replaceAll(',', '.'),
+    );
+
+    if (amount == null || amount <= 0) {
+      setState(() {
+        _error = 'Enter a valid amount greater than zero.';
+      });
+      return;
+    }
+
+    if (amount > widget.available) {
+      setState(() {
+        _error = 'You only have ${widget.available} available.';
+      });
+      return;
+    }
+
+    Navigator.of(context).pop(amount);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      scrollable: true,
+      title: Text('Use ${widget.item.name}'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Available: ${widget.item.amount} ${widget.item.unit}'),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _amountController,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Amount used (${widget.item.unit})',
+              hintText: 'Enter amount',
+              errorText: _error,
+            ),
+            onSubmitted: (_) => _submit(),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(onPressed: _submit, child: const Text('Use')),
+      ],
+    );
+  }
+}
+
+=== lib/features/meal_planning/models/meal.dart ===
+class Meal {
+  final int? id;
+  final String date;
+  final String category;
+  final String name;
+  final String itemType;
+  final int? recipeId;
+  final int? foodId;
+  final String quantity;
+  final String unit;
+
+  const Meal({
+    this.id,
+    required this.date,
+    required this.category,
+    required this.name,
+    this.itemType = 'ingredient',
+    this.recipeId,
+    this.foodId,
+    this.quantity = '',
+    this.unit = '',
+  });
+
+  bool get isRecipe => itemType == 'recipe';
+
+  double get quantityValue {
+    return double.tryParse(quantity.replaceAll(',', '.')) ?? 0;
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'date': date,
+      'category': category,
+      'name': name,
+      'item_type': itemType,
+      'recipe_id': recipeId,
+      'food_id': foodId,
+      'quantity': quantity,
+      'unit': unit,
+    };
+  }
+
+  factory Meal.fromMap(Map<String, dynamic> map) {
+    return Meal(
+      id: map['id'] as int?,
+      date: map['date'] as String,
+      category: map['category'] as String,
+      name: map['name'] as String,
+      itemType: map['item_type'] as String? ?? 'ingredient',
+      recipeId: map['recipe_id'] as int?,
+      foodId: map['food_id'] as int?,
+      quantity: map['quantity'] as String? ?? '',
+      unit: map['unit'] as String? ?? '',
+    );
+  }
+
+  Meal copyWith({
+    int? id,
+    String? date,
+    String? category,
+    String? name,
+    String? itemType,
+    int? recipeId,
+    int? foodId,
+    String? quantity,
+    String? unit,
+  }) {
+    return Meal(
+      id: id ?? this.id,
+      date: date ?? this.date,
+      category: category ?? this.category,
+      name: name ?? this.name,
+      itemType: itemType ?? this.itemType,
+      recipeId: recipeId ?? this.recipeId,
+      foodId: foodId ?? this.foodId,
+      quantity: quantity ?? this.quantity,
+      unit: unit ?? this.unit,
+    );
+  }
+}
+
+=== lib/features/meal_planning/repositories/meal_repository.dart ===
+import 'package:preplist/features/meal_planning/models/meal.dart';
+import 'package:preplist/core/database/app_database.dart';
+
+class MealRepository {
+  final AppDatabase _database = AppDatabase.instance;
+
+  Future<List<Meal>> getAll() async {
+    final db = await _database.database;
+
+    final rows = await db.query('meals', orderBy: 'date ASC, id ASC');
+
+    return rows
+        .map((row) => Meal.fromMap(Map<String, dynamic>.from(row)))
+        .toList();
+  }
+
+  Future<List<Meal>> getByDate(String date) async {
+    final db = await _database.database;
+
+    final rows = await db.query(
+      'meals',
+      where: 'date = ?',
+      whereArgs: [date],
+      orderBy: 'id ASC',
+    );
+
+    return rows
+        .map((row) => Meal.fromMap(Map<String, dynamic>.from(row)))
+        .toList();
+  }
+
+  Future<int> insert(Meal meal) async {
+    final db = await _database.database;
+    final values = meal.toMap()..remove('id');
+
+    return db.insert('meals', values);
+  }
+
+  Future<void> update(Meal meal) async {
+    if (meal.id == null) {
+      throw ArgumentError('Meal ID cannot be null');
+    }
+
+    final db = await _database.database;
+    final values = meal.toMap()..remove('id');
+
+    await db.update('meals', values, where: 'id = ?', whereArgs: [meal.id]);
+  }
+
+  Future<void> delete(int id) async {
+    final db = await _database.database;
+
+    await db.delete('meals', where: 'id = ?', whereArgs: [id]);
+  }
+}
+
+=== lib/features/meal_planning/screens/week_plan_tab.dart ===
+import 'package:flutter/material.dart';
+
+import 'package:preplist/features/meal_planning/repositories/meal_repository.dart';
+import 'package:preplist/features/recipes/repositories/recipe_repository.dart';
+import 'package:preplist/features/nutrition/services/nutrition_calculator.dart';
+import 'package:preplist/features/meal_planning/models/meal.dart';
+import 'package:preplist/features/recipes/models/recipe.dart';
+import 'package:preplist/features/foods/models/swiss_food.dart';
+import 'package:preplist/features/recipes/widgets/nutrition_summary_view.dart';
+
+import 'package:preplist/features/foods/widgets/food_picker_dialog.dart';
+
+class WeekPlanTab extends StatefulWidget {
+  const WeekPlanTab({super.key});
+
+  @override
+  State<WeekPlanTab> createState() => _WeekPlanTabState();
+}
+
+class _WeekPlanTabState extends State<WeekPlanTab> {
+  final MealRepository _mealRepository = MealRepository();
+  final RecipeRepository _recipeRepository = RecipeRepository();
+  final NutritionCalculator _nutritionCalculator = NutritionCalculator();
+
+  DateTime _selectedDate = _today();
+  bool _isLoading = true;
+
+  List<Meal> _meals = [];
+
+  NutritionSummary _dailyNutrition = NutritionSummary.zero;
+  Map<int, NutritionSummary> _mealNutrition = {};
+
+  final List<String> _categories = ['Breakfast', 'Lunch', 'Dinner', 'Snacks'];
+
+  static DateTime _today() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  DateTime _startOfWeek(DateTime date) {
+    final normalized = DateTime(date.year, date.month, date.day);
+
+    return normalized.subtract(
+      Duration(days: normalized.weekday - DateTime.monday),
+    );
+  }
+
+  DateTime _endOfWeek(DateTime date) {
+    return _startOfWeek(date).add(const Duration(days: 6));
+  }
+
+  String _dateKey(DateTime date) {
+    final year = date.year.toString().padLeft(4, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+
+    return '$year-$month-$day';
+  }
+
+  bool _isSameDay(DateTime first, DateTime second) {
+    return first.year == second.year &&
+        first.month == second.month &&
+        first.day == second.day;
+  }
+
+  bool _isPastDate(DateTime date) {
+    return date.isBefore(_today());
+  }
+
+  List<Meal> _mealsForDate(String category) {
+    return _meals.where((meal) {
+      return meal.category == category && meal.date == _dateKey(_selectedDate);
+    }).toList();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMeals();
+  }
+
+  Future<void> _loadMeals() async {
+    try {
+      final meals = await _mealRepository.getByDate(_dateKey(_selectedDate));
+
+      final nutritionResults = await Future.wait(
+        meals.map(_nutritionCalculator.forMeal),
+      );
+
+      var dailyTotal = NutritionSummary.zero;
+      final nutritionByMeal = <int, NutritionSummary>{};
+
+      for (var i = 0; i < meals.length; i++) {
+        final nutrition = nutritionResults[i];
+
+        dailyTotal += nutrition;
+
+        final id = meals[i].id;
+
+        if (id != null) {
+          nutritionByMeal[id] = nutrition;
+        }
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _meals = meals;
+        _dailyNutrition = dailyTotal;
+        _mealNutrition = nutritionByMeal;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      _showError('Failed to load meals: $e');
+    }
+  }
+
+  Future<void> _loadSelectedDateMeals() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    await _loadMeals();
+  }
+
+  Future<void> _changeWeek(int offset) async {
+    final currentWeek = _startOfWeek(_today());
+    final targetDate = _selectedDate.add(Duration(days: offset * 7));
+    final targetWeek = _startOfWeek(targetDate);
+
+    if (targetWeek.isBefore(currentWeek)) return;
+
+    setState(() {
+      _selectedDate = targetDate;
+    });
+
+    await _loadSelectedDateMeals();
+  }
+
+  Future<void> _selectDate() async {
+    final today = _today();
+
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate.isBefore(today) ? today : _selectedDate,
+      firstDate: today,
+      lastDate: DateTime(2100),
+      helpText: 'Select planning date',
+    );
+
+    if (!mounted || selected == null) return;
+
+    setState(() {
+      _selectedDate = selected;
+    });
+
+    await _loadSelectedDateMeals();
+  }
+
+  String _monthName(int month) {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+
+    return months[month - 1];
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day} ${_monthName(date.month)}';
+  }
+
+  String _weekTitle() {
+    final start = _startOfWeek(_selectedDate);
+    final end = _endOfWeek(_selectedDate);
+
+    if (start.month == end.month) {
+      return '${_monthName(start.month)} ${start.year}';
+    }
+
+    if (start.year == end.year) {
+      return '${_monthName(start.month)} - '
+          '${_monthName(end.month)} ${end.year}';
+    }
+
+    return '${_monthName(start.month)} ${start.year} - '
+        '${_monthName(end.month)} ${end.year}';
+  }
+
+  bool get _canGoToPreviousWeek {
+    return _startOfWeek(_selectedDate).isAfter(_startOfWeek(_today()));
+  }
+
+  Future<void> _addMeal(String category) async {
+    if (_isPastDate(_selectedDate)) {
+      _showError('You cannot plan meals for past dates.');
+      return;
+    }
+
+    try {
+      final recipes = await _recipeRepository.getAll();
+
+      if (!mounted) return;
+
+      final draft = await showDialog<_MealDraft>(
+        context: context,
+        builder: (context) {
+          return _AddMealDialog(category: category, recipes: recipes);
+        },
+      );
+
+      if (!mounted || draft == null) return;
+
+      await _saveMeal(category, draft);
+    } catch (e) {
+      if (!mounted) return;
+      _showError('Failed to load recipes: $e');
+    }
+  }
+
+  Future<void> _saveMeal(String category, _MealDraft draft) async {
+    if (_isPastDate(_selectedDate)) {
+      _showError('You cannot plan meals for past dates.');
+      return;
+    }
+
+    try {
+      final meal = Meal(
+        date: _dateKey(_selectedDate),
+        category: category,
+        name: draft.name,
+        itemType: draft.itemType,
+        recipeId: draft.recipeId,
+        foodId: draft.foodId,
+        quantity: draft.quantity,
+        unit: draft.unit,
+      );
+
+      await _mealRepository.insert(meal);
+
+      await _loadSelectedDateMeals();
+    } catch (e) {
+      if (!mounted) return;
+      _showError('Failed to save meal: $e');
+    }
+  }
+
+  Future<void> _removeMeal(Meal meal) async {
+    if (meal.id == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Remove item'),
+          content: Text('Remove "${meal.name}" from your plan?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Remove'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await _mealRepository.delete(meal.id!);
+      await _loadSelectedDateMeals();
+    } catch (e) {
+      if (!mounted) return;
+      _showError('Failed to remove item: $e');
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : RefreshIndicator(
+                      onRefresh: _loadSelectedDateMeals,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildWeekDays(),
+                            const SizedBox(height: 24),
+                            _buildSelectedDateHeader(),
+                            const SizedBox(height: 12),
+                            NutritionSummaryView(nutrition: _dailyNutrition),
+                            const SizedBox(height: 20),
+                            ..._categories.map(_buildMealCategory),
+                          ],
+                        ),
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Week Plan',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Select date',
+                onPressed: _selectDate,
+                icon: const Icon(Icons.calendar_month),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              IconButton(
+                tooltip: 'Previous week',
+                onPressed: _canGoToPreviousWeek ? () => _changeWeek(-1) : null,
+                icon: const Icon(Icons.chevron_left),
+              ),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    _weekTitle(),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Next week',
+                onPressed: () => _changeWeek(1),
+                icon: const Icon(Icons.chevron_right),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeekDays() {
+    final start = _startOfWeek(_selectedDate);
+
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    return Row(
+      children: List.generate(7, (index) {
+        final date = start.add(Duration(days: index));
+        final isSelected = _isSameDay(date, _selectedDate);
+        final isToday = _isSameDay(date, _today());
+        final isPast = _isPastDate(date);
+        final colorScheme = Theme.of(context).colorScheme;
+
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: isPast
+                  ? null
+                  : () async {
+                      setState(() {
+                        _selectedDate = date;
+                      });
+
+                      await _loadSelectedDateMeals();
+                    },
+              child: Opacity(
+                opacity: isPast ? 0.35 : 1,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? colorScheme.primary
+                        : isToday
+                        ? colorScheme.primaryContainer
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    border: isToday && !isSelected
+                        ? Border.all(color: colorScheme.primary)
+                        : null,
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        weekdays[index],
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isSelected
+                              ? colorScheme.onPrimary
+                              : colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${date.day}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isSelected
+                              ? colorScheme.onPrimary
+                              : colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      if (isToday)
+                        Container(
+                          width: 4,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? colorScheme.onPrimary
+                                : colorScheme.primary,
+                            shape: BoxShape.circle,
+                          ),
+                        )
+                      else
+                        const SizedBox(height: 4),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildSelectedDateHeader() {
+    final isToday = _isSameDay(_selectedDate, _today());
+
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isToday ? 'Today' : _formatDate(_selectedDate),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                _selectedDate.year.toString(),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (!_isPastDate(_selectedDate))
+          TextButton.icon(
+            onPressed: () {
+              setState(() {
+                _selectedDate = _today();
+              });
+              _loadSelectedDateMeals();
+            },
+            icon: const Icon(Icons.today),
+            label: const Text('Today'),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildMealCategory(String category) {
+    final meals = _mealsForDate(category);
+
+    final icon = switch (category) {
+      'Breakfast' => Icons.wb_sunny_outlined,
+      'Lunch' => Icons.lunch_dining_outlined,
+      'Dinner' => Icons.dinner_dining_outlined,
+      _ => Icons.cookie_outlined,
+    };
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    category,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${meals.length} items',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Add to $category',
+                  onPressed: _isPastDate(_selectedDate)
+                      ? null
+                      : () => _addMeal(category),
+                  icon: const Icon(Icons.add),
+                ),
+              ],
+            ),
+            if (meals.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Nothing planned yet',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              )
+            else
+              ...meals.map(_buildMealItem),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMealItem(Meal meal) {
+    final isRecipe = meal.isRecipe;
+    final nutrition = meal.id == null
+        ? NutritionSummary.zero
+        : _mealNutrition[meal.id] ?? NutritionSummary.zero;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            isRecipe ? Icons.menu_book_outlined : Icons.restaurant_outlined,
+            size: 20,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  meal.name,
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  isRecipe
+                      ? 'Recipe • ${meal.quantity} ${meal.unit}'
+                      : '${meal.quantity} ${meal.unit}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                NutritionSummaryView(compact: true, nutrition: nutrition),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Remove',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => _removeMeal(meal),
+            icon: const Icon(Icons.close, size: 19),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MealDraft {
+  final String name;
+  final String itemType;
+  final int? recipeId;
+  final int? foodId;
+  final String quantity;
+  final String unit;
+
+  const _MealDraft({
+    required this.name,
+    required this.itemType,
+    required this.recipeId,
+    required this.foodId,
+    required this.quantity,
+    required this.unit,
+  });
+}
+
+class _AddMealDialog extends StatefulWidget {
+  final String category;
+  final List<Recipe> recipes;
+
+  const _AddMealDialog({required this.category, required this.recipes});
+
+  @override
+  State<_AddMealDialog> createState() => _AddMealDialogState();
+}
+
+class _AddMealDialogState extends State<_AddMealDialog> {
+  String _type = 'recipe';
+
+  Recipe? _selectedRecipe;
+  SwissFood? _selectedFood;
+
+  final _amountController = TextEditingController(text: '100');
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (widget.recipes.isEmpty) {
+      _type = 'ingredient';
+    } else {
+      _selectedRecipe = widget.recipes.first;
+    }
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    if (_type == 'recipe') {
+      final recipe = _selectedRecipe;
+
+      if (recipe == null) return;
+
+      Navigator.pop(
+        context,
+        _MealDraft(
+          name: recipe.name,
+          itemType: 'recipe',
+          recipeId: recipe.id,
+          foodId: null,
+          quantity: '1',
+          unit: 'serving',
+        ),
+      );
+
+      return;
+    }
+
+    final food = _selectedFood;
+    final amount = double.tryParse(
+      _amountController.text.trim().replaceAll(',', '.'),
+    );
+
+    if (food == null || amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Select a food and enter a valid amount.'),
+        ),
+      );
+      return;
+    }
+
+    Navigator.pop(
+      context,
+      _MealDraft(
+        name: food.name,
+        itemType: 'ingredient',
+        recipeId: null,
+        foodId: food.id,
+        quantity: amount.toString(),
+        unit: 'g',
+      ),
+    );
+  }
+
+  Future<void> _selectFood() async {
+    final food = await showDialog<SwissFood>(
+      context: context,
+      builder: (_) => const FoodPickerDialog(),
+    );
+
+    if (!mounted || food == null) return;
+
+    setState(() {
+      _selectedFood = food;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Add to ${widget.category}'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(
+                  value: 'recipe',
+                  label: Text('Recipe'),
+                  icon: Icon(Icons.menu_book_outlined),
+                ),
+                ButtonSegment(
+                  value: 'ingredient',
+                  label: Text('Ingredient'),
+                  icon: Icon(Icons.restaurant_outlined),
+                ),
+              ],
+              selected: {_type},
+              onSelectionChanged: (selection) {
+                setState(() {
+                  _type = selection.first;
+                });
+              },
+            ),
+            const SizedBox(height: 20),
+            if (_type == 'recipe') ...[
+              if (widget.recipes.isEmpty)
+                const Text('No saved recipes. Create one in the Recipes tab.')
+              else
+                DropdownButtonFormField<Recipe>(
+                  initialValue: _selectedRecipe,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Select recipe',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: widget.recipes.map((recipe) {
+                    return DropdownMenuItem(
+                      value: recipe,
+                      child: Text(recipe.name, overflow: TextOverflow.ellipsis),
+                    );
+                  }).toList(),
+                  onChanged: (recipe) {
+                    setState(() {
+                      _selectedRecipe = recipe;
+                    });
+                  },
+                ),
+            ] else ...[
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _selectFood,
+                  icon: const Icon(Icons.search),
+                  label: Text(
+                    _selectedFood?.name ?? 'Select food from database',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _amountController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Amount',
+                  suffixText: 'g',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _type == 'recipe' && widget.recipes.isEmpty ? null : _save,
+          child: const Text('Add'),
+        ),
+      ],
+    );
+  }
+}
+
+=== lib/features/nutrition/services/nutrition_calculator.dart ===
+import 'package:preplist/features/meal_planning/models/meal.dart';
+import 'package:preplist/features/recipes/models/recipe.dart';
+import 'package:preplist/features/foods/models/swiss_food.dart';
+import 'package:preplist/features/foods/repositories/food_repository.dart';
+import 'package:preplist/features/recipes/repositories/recipe_repository.dart';
+
+class NutritionCalculator {
+  final FoodRepository database;
+  final RecipeRepository recipeRepository;
+
+  NutritionCalculator({
+    FoodRepository? database,
+    RecipeRepository? recipeRepository,
+  }) : database = database ?? FoodRepository.instance,
+       recipeRepository = recipeRepository ?? RecipeRepository();
+
+  Future<NutritionSummary> forIngredients(
+    List<RecipeIngredient> ingredients,
+  ) async {
+    var total = NutritionSummary.zero;
+
+    for (final ingredient in ingredients) {
+      if (ingredient.foodId == null) continue;
+      if (ingredient.unit.toLowerCase() != 'g') continue;
+
+      final grams = ingredient.grams;
+
+      if (grams <= 0) continue;
+
+      final food = await database.getFood(ingredient.foodId!);
+
+      if (food == null) continue;
+
+      total += NutritionSummary(
+        calories: food.caloriesFor(grams),
+        protein: food.proteinFor(grams),
+        carbs: food.carbsFor(grams),
+        fat: food.fatFor(grams),
+      );
+    }
+
+    return total;
+  }
+
+  Future<NutritionSummary> forRecipe(Recipe recipe) async {
+    return forIngredients(recipe.ingredients);
+  }
+
+  Future<NutritionSummary> forRecipeServing(Recipe recipe) async {
+    final total = await forRecipe(recipe);
+    final servings = recipe.servings > 0 ? recipe.servings : 1;
+
+    return total / servings.toDouble();
+  }
+
+  Future<NutritionSummary> forMeal(Meal meal) async {
+    if (meal.isRecipe) {
+      if (meal.recipeId == null) return NutritionSummary.zero;
+
+      final recipe = await recipeRepository.getById(meal.recipeId!);
+
+      if (recipe == null) return NutritionSummary.zero;
+
+      final servingNutrition = await forRecipeServing(recipe);
+      final servings = meal.quantityValue;
+
+      if (servings <= 0) return NutritionSummary.zero;
+
+      return servingNutrition * servings;
+    }
+
+    if (meal.foodId == null || meal.unit.toLowerCase() != 'g') {
+      return NutritionSummary.zero;
+    }
+
+    final grams = meal.quantityValue;
+
+    if (grams <= 0) return NutritionSummary.zero;
+
+    final SwissFood? food = await database.getFood(meal.foodId!);
+
+    if (food == null) return NutritionSummary.zero;
+
+    return NutritionSummary(
+      calories: food.caloriesFor(grams),
+      protein: food.proteinFor(grams),
+      carbs: food.carbsFor(grams),
+      fat: food.fatFor(grams),
+    );
+  }
+
+  Future<NutritionSummary> forMeals(List<Meal> meals) async {
+    var total = NutritionSummary.zero;
+
+    for (final meal in meals) {
+      total += await forMeal(meal);
+    }
+
+    return total;
+  }
+}
+
+class NutritionSummary {
+  final double calories;
+  final double protein;
+  final double carbs;
+  final double fat;
+
+  const NutritionSummary({
+    required this.calories,
+    required this.protein,
+    required this.carbs,
+    required this.fat,
+  });
+
+  static const zero = NutritionSummary(
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+  );
+
+  NutritionSummary operator +(NutritionSummary other) {
+    return NutritionSummary(
+      calories: calories + other.calories,
+      protein: protein + other.protein,
+      carbs: carbs + other.carbs,
+      fat: fat + other.fat,
+    );
+  }
+
+  NutritionSummary operator /(double divisor) {
+    if (divisor == 0) return zero;
+
+    return NutritionSummary(
+      calories: calories / divisor,
+      protein: protein / divisor,
+      carbs: carbs / divisor,
+      fat: fat / divisor,
+    );
+  }
+
+  NutritionSummary operator *(double multiplier) {
+    return NutritionSummary(
+      calories: calories * multiplier,
+      protein: protein * multiplier,
+      carbs: carbs * multiplier,
+      fat: fat * multiplier,
+    );
+  }
+
+  String get formatted =>
+      '${calories.round()} kcal · '
+      'P ${protein.toStringAsFixed(1)} g · '
+      'C ${carbs.toStringAsFixed(1)} g · '
+      'F ${fat.toStringAsFixed(1)} g';
+}
+
+=== lib/features/recipes/models/recipe.dart ===
+class Recipe {
+  final int? id;
+  final String name;
+  final String description;
+  final String instructions;
+  final int prepMinutes;
+  final int cookMinutes;
+  final int servings;
+  final List<RecipeIngredient> ingredients;
+
+  const Recipe({
+    this.id,
+    required this.name,
+    this.description = '',
+    this.instructions = '',
+    this.prepMinutes = 0,
+    this.cookMinutes = 0,
+    this.servings = 1,
+    this.ingredients = const [],
+  });
+
+  factory Recipe.fromMap(
+    Map<String, dynamic> map, {
+    List<RecipeIngredient> ingredients = const [],
+  }) {
+    return Recipe(
+      id: map['id'] as int?,
+      name: map['name'] as String? ?? '',
+      description: map['description'] as String? ?? '',
+      instructions: map['instructions'] as String? ?? '',
+      prepMinutes: (map['prep_minutes'] as num?)?.toInt() ?? 0,
+      cookMinutes: (map['cook_minutes'] as num?)?.toInt() ?? 0,
+      servings: (map['servings'] as num?)?.toInt() ?? 1,
+      ingredients: ingredients,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'description': description,
+      'instructions': instructions,
+      'prep_minutes': prepMinutes,
+      'cook_minutes': cookMinutes,
+      'servings': servings,
+    };
+  }
+}
+
+class RecipeIngredient {
+  final int? id;
+  final int? recipeId;
+  final int? foodId;
+  final String name;
+  final String amount;
+  final String unit;
+
+  const RecipeIngredient({
+    this.id,
+    this.recipeId,
+    this.foodId,
+    required this.name,
+    this.amount = '',
+    this.unit = 'g',
+  });
+
+  double get grams {
+    if (unit.toLowerCase() != 'g') return 0;
+
+    return double.tryParse(amount.replaceAll(',', '.')) ?? 0;
+  }
+
+  factory RecipeIngredient.fromMap(Map<String, dynamic> map) {
+    return RecipeIngredient(
+      id: map['id'] as int?,
+      recipeId: map['recipe_id'] as int?,
+      foodId: map['food_id'] as int?,
+      name: map['name'] as String? ?? '',
+      amount: map['amount'] as String? ?? '',
+      unit: map['unit'] as String? ?? 'g',
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'recipe_id': recipeId,
+      'food_id': foodId,
+      'name': name,
+      'amount': amount,
+      'unit': unit,
+    };
+  }
+}
+
+=== lib/features/recipes/repositories/recipe_repository.dart ===
+import 'package:sqflite/sqflite.dart';
+
+import 'package:preplist/features/recipes/models/recipe.dart';
+import 'package:preplist/core/database/app_database.dart';
+
+class RecipeRepository {
+  final AppDatabase _database = AppDatabase.instance;
+
+  Future<List<Recipe>> getAll({String query = ''}) async {
+    final db = await _database.database;
+    final trimmed = query.trim();
+
+    final rows = await db.query(
+      'recipes',
+      where: trimmed.isEmpty ? null : 'name LIKE ?',
+      whereArgs: trimmed.isEmpty ? null : ['%$trimmed%'],
+      orderBy: 'name COLLATE NOCASE ASC',
+    );
+
+    final recipes = <Recipe>[];
+
+    for (final row in rows) {
+      recipes.add(await _getRecipeWithIngredients(db, row));
+    }
+
+    return recipes;
+  }
+
+  Future<Recipe?> getById(int id) async {
+    final db = await _database.database;
+
+    final rows = await db.query(
+      'recipes',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+
+    if (rows.isEmpty) return null;
+
+    return _getRecipeWithIngredients(db, rows.first);
+  }
+
+  Future<Recipe> _getRecipeWithIngredients(
+    DatabaseExecutor db,
+    Map<String, Object?> row,
+  ) async {
+    final ingredientRows = await db.query(
+      'recipe_ingredients',
+      where: 'recipe_id = ?',
+      whereArgs: [row['id']],
+      orderBy: 'id ASC',
+    );
+
+    return Recipe.fromMap(
+      Map<String, dynamic>.from(row),
+      ingredients: ingredientRows
+          .map(
+            (ingredient) =>
+                RecipeIngredient.fromMap(Map<String, dynamic>.from(ingredient)),
+          )
+          .toList(),
+    );
+  }
+
+  Future<int> insert(Recipe recipe) async {
+    final db = await _database.database;
+
+    return db.transaction((txn) async {
+      final recipeId = await txn.insert('recipes', recipe.toMap());
+
+      for (final ingredient in recipe.ingredients) {
+        await txn.insert('recipe_ingredients', {
+          'recipe_id': recipeId,
+          'food_id': ingredient.foodId,
+          'name': ingredient.name,
+          'amount': ingredient.amount,
+          'unit': ingredient.unit,
+        });
+      }
+
+      return recipeId;
+    });
+  }
+
+  Future<void> update(Recipe recipe) async {
+    final recipeId = recipe.id;
+
+    if (recipeId == null) {
+      throw ArgumentError('Recipe ID cannot be null');
+    }
+
+    final db = await _database.database;
+
+    await db.transaction((txn) async {
+      await txn.update(
+        'recipes',
+        recipe.toMap(),
+        where: 'id = ?',
+        whereArgs: [recipeId],
+      );
+
+      await txn.delete(
+        'recipe_ingredients',
+        where: 'recipe_id = ?',
+        whereArgs: [recipeId],
+      );
+
+      for (final ingredient in recipe.ingredients) {
+        await txn.insert('recipe_ingredients', {
+          'recipe_id': recipeId,
+          'food_id': ingredient.foodId,
+          'name': ingredient.name,
+          'amount': ingredient.amount,
+          'unit': ingredient.unit,
+        });
+      }
+    });
+  }
+
+  Future<void> delete(int id) async {
+    final db = await _database.database;
+
+    await db.delete('recipes', where: 'id = ?', whereArgs: [id]);
+  }
+}
+
+=== lib/features/recipes/screens/recipes_tab.dart ===
+import 'package:flutter/material.dart';
+
+import 'package:preplist/features/recipes/repositories/recipe_repository.dart';
+import 'package:preplist/features/nutrition/services/nutrition_calculator.dart';
+import 'package:preplist/features/recipes/models/recipe.dart';
+import 'package:preplist/features/recipes/widgets/ingredient_editor.dart';
+import 'package:preplist/features/recipes/widgets/nutrition_summary_view.dart';
+
+class RecipesTab extends StatefulWidget {
+  const RecipesTab({super.key});
+
+  @override
+  State<RecipesTab> createState() => _RecipesTabState();
+}
+
+class _RecipesTabState extends State<RecipesTab> {
+  final RecipeRepository _repository = RecipeRepository();
+  final NutritionCalculator _nutritionCalculator = NutritionCalculator();
+  final TextEditingController _searchController = TextEditingController();
+
+  List<Recipe> _recipes = [];
+
+  Map<int, NutritionSummary> _recipeNutrition = {};
+  Map<int, NutritionSummary> _servingNutrition = {};
+
+  bool _isLoading = true;
+  String _search = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecipes();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadRecipes() async {
+    try {
+      final recipes = await _repository.getAll(query: _search);
+
+      final recipeNutrition = <int, NutritionSummary>{};
+      final servingNutrition = <int, NutritionSummary>{};
+
+      for (final recipe in recipes) {
+        final id = recipe.id;
+
+        if (id == null) continue;
+
+        recipeNutrition[id] = await _nutritionCalculator.forRecipe(recipe);
+        servingNutrition[id] = await _nutritionCalculator.forRecipeServing(
+          recipe,
+        );
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _recipes = recipes;
+        _recipeNutrition = recipeNutrition;
+        _servingNutrition = servingNutrition;
+        _isLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      _showMessage('Could not load recipes: $error');
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _openForm({Recipe? recipe}) async {
+    final result = await showDialog<Recipe>(
+      context: context,
+      builder: (_) => _RecipeFormDialog(recipe: recipe),
+    );
+
+    if (!mounted || result == null) return;
+
+    try {
+      if (recipe == null) {
+        await _repository.insert(result);
+      } else {
+        await _repository.update(result);
+      }
+
+      await _loadRecipes();
+    } catch (error) {
+      if (!mounted) return;
+      _showMessage('Could not save recipe: $error');
+    }
+  }
+
+  Future<void> _deleteRecipe(Recipe recipe) async {
+    if (recipe.id == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete recipe?'),
+        content: Text('Delete "${recipe.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted || confirmed != true) return;
+
+    try {
+      await _repository.delete(recipe.id!);
+      await _loadRecipes();
+    } catch (error) {
+      if (!mounted) return;
+      _showMessage('Could not delete recipe: $error');
+    }
+  }
+
+  void _showDetails(Recipe recipe) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => _RecipeDetailsDialog(
+        recipe: recipe,
+        nutrition: _recipeNutrition[recipe.id] ?? NutritionSummary.zero,
+        servingNutrition: _servingNutrition[recipe.id] ?? NutritionSummary.zero,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _openForm(),
+        child: const Icon(Icons.add),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Recipes',
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search recipes...',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _search.isEmpty
+                          ? null
+                          : IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() {
+                                  _search = '';
+                                  _isLoading = true;
+                                });
+                                _loadRecipes();
+                              },
+                            ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _search = value;
+                        _isLoading = true;
+                      });
+                      _loadRecipes();
+                    },
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _recipes.isEmpty
+                  ? _buildEmptyState(theme)
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+                      itemCount: _recipes.length,
+                      itemBuilder: (context, index) {
+                        final recipe = _recipes[index];
+                        final id = recipe.id;
+
+                        return _RecipeCard(
+                          recipe: recipe,
+                          nutrition: id == null
+                              ? NutritionSummary.zero
+                              : _recipeNutrition[id] ?? NutritionSummary.zero,
+                          servingNutrition: id == null
+                              ? NutritionSummary.zero
+                              : _servingNutrition[id] ?? NutritionSummary.zero,
+                          onTap: () => _showDetails(recipe),
+                          onEdit: () => _openForm(recipe: recipe),
+                          onDelete: () => _deleteRecipe(recipe),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.menu_book_outlined,
+              size: 56,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _search.isEmpty ? 'No recipes yet' : 'No recipes found',
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _search.isEmpty
+                  ? 'Add your first recipe.'
+                  : 'Try another search.',
+              style: theme.textTheme.bodyMedium,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RecipeCard extends StatelessWidget {
+  final Recipe recipe;
+  final NutritionSummary nutrition;
+  final NutritionSummary servingNutrition;
+  final VoidCallback onTap;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _RecipeCard({
+    required this.recipe,
+    required this.nutrition,
+    required this.servingNutrition,
+    required this.onTap,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      recipe.name,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  PopupMenuButton<String>(
+                    onSelected: (value) {
+                      if (value == 'edit') onEdit();
+                      if (value == 'delete') onDelete();
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      PopupMenuItem(value: 'delete', child: Text('Delete')),
+                    ],
+                  ),
+                ],
+              ),
+              if (recipe.description.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  recipe.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ],
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 16,
+                runSpacing: 8,
+                children: [
+                  _InfoLabel(
+                    icon: Icons.schedule,
+                    text: '${recipe.prepMinutes + recipe.cookMinutes} min',
+                  ),
+                  _InfoLabel(
+                    icon: Icons.restaurant,
+                    text: '${recipe.servings} servings',
+                  ),
+                  _InfoLabel(
+                    icon: Icons.eco_outlined,
+                    text: '${recipe.ingredients.length} ingredients',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              Text('Per serving', style: theme.textTheme.labelMedium),
+              const SizedBox(height: 8),
+              NutritionSummaryView(compact: true, nutrition: servingNutrition),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoLabel extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _InfoLabel({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16),
+        const SizedBox(width: 4),
+        Text(text, style: Theme.of(context).textTheme.bodySmall),
+      ],
+    );
+  }
+}
+
+class _RecipeFormDialog extends StatefulWidget {
+  final Recipe? recipe;
+
+  const _RecipeFormDialog({this.recipe});
+
+  @override
+  State<_RecipeFormDialog> createState() => _RecipeFormDialogState();
+}
+
+class _RecipeFormDialogState extends State<_RecipeFormDialog> {
+  late final TextEditingController _name;
+  late final TextEditingController _description;
+  late final TextEditingController _instructions;
+  late final TextEditingController _prep;
+  late final TextEditingController _cook;
+  late final TextEditingController _servings;
+
+  late List<RecipeIngredient> _ingredients;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final recipe = widget.recipe;
+
+    _name = TextEditingController(text: recipe?.name ?? '');
+    _description = TextEditingController(text: recipe?.description ?? '');
+    _instructions = TextEditingController(text: recipe?.instructions ?? '');
+    _prep = TextEditingController(text: '${recipe?.prepMinutes ?? 0}');
+    _cook = TextEditingController(text: '${recipe?.cookMinutes ?? 0}');
+    _servings = TextEditingController(text: '${recipe?.servings ?? 1}');
+
+    _ingredients = List.of(recipe?.ingredients ?? []);
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _description.dispose();
+    _instructions.dispose();
+    _prep.dispose();
+    _cook.dispose();
+    _servings.dispose();
+    super.dispose();
+  }
+
+  int _intValue(TextEditingController controller, int fallback) {
+    return int.tryParse(controller.text.trim()) ?? fallback;
+  }
+
+  void _save() {
+    final name = _name.text.trim();
+
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Recipe name is required.')));
+      return;
+    }
+
+    final recipe = Recipe(
+      id: widget.recipe?.id,
+      name: name,
+      description: _description.text.trim(),
+      instructions: _instructions.text.trim(),
+      prepMinutes: _intValue(_prep, 0).clamp(0, 9999),
+      cookMinutes: _intValue(_cook, 0).clamp(0, 9999),
+      servings: _intValue(_servings, 1).clamp(1, 999),
+      ingredients: List.of(_ingredients),
+    );
+
+    Navigator.of(context).pop(recipe);
+  }
+
+  Widget _field(
+    String label,
+    TextEditingController controller, {
+    TextInputType keyboardType = TextInputType.text,
+    int maxLines = 1,
+    String? hint,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        maxLines: maxLines,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          border: const OutlineInputBorder(),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.recipe == null ? 'New recipe' : 'Edit recipe'),
+      content: SizedBox(
+        width: 500,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _field('Recipe name *', _name),
+              _field('Description', _description, maxLines: 2),
+              _field('Instructions', _instructions, maxLines: 4),
+              const Divider(height: 24),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Ingredients',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 12),
+              IngredientEditor(
+                ingredients: _ingredients,
+                onChanged: (ingredients) {
+                  _ingredients = List.of(ingredients);
+                },
+              ),
+              const Divider(height: 24),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Preparation',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _field(
+                      'Prep (min)',
+                      _prep,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _field(
+                      'Cook (min)',
+                      _cook,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
+              ),
+              _field('Servings', _servings, keyboardType: TextInputType.number),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(onPressed: _save, child: const Text('Save')),
+      ],
+    );
+  }
+}
+
+class _RecipeDetailsDialog extends StatelessWidget {
+  final Recipe recipe;
+  final NutritionSummary nutrition;
+  final NutritionSummary servingNutrition;
+
+  const _RecipeDetailsDialog({
+    required this.recipe,
+    required this.nutrition,
+    required this.servingNutrition,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return AlertDialog(
+      title: Text(recipe.name),
+      content: SizedBox(
+        width: 450,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (recipe.description.isNotEmpty) ...[
+                Text(recipe.description),
+                const SizedBox(height: 16),
+              ],
+              Wrap(
+                spacing: 16,
+                runSpacing: 8,
+                children: [
+                  _InfoLabel(
+                    icon: Icons.timer_outlined,
+                    text: '${recipe.prepMinutes} min prep',
+                  ),
+                  _InfoLabel(
+                    icon: Icons.soup_kitchen_outlined,
+                    text: '${recipe.cookMinutes} min cooking',
+                  ),
+                  _InfoLabel(
+                    icon: Icons.restaurant,
+                    text: '${recipe.servings} servings',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Text('Nutrition per serving', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 8),
+              NutritionSummaryView(nutrition: servingNutrition),
+              const SizedBox(height: 16),
+              Text(
+                'Nutrition for entire recipe',
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              NutritionSummaryView(nutrition: nutrition),
+              const SizedBox(height: 20),
+              Text(
+                'Ingredients (${recipe.ingredients.length})',
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              if (recipe.ingredients.isEmpty)
+                const Text('No ingredients added.')
+              else
+                ...recipe.ingredients.map((ingredient) {
+                  final quantity = [
+                    ingredient.amount,
+                    ingredient.unit,
+                  ].where((value) => value.isNotEmpty).join(' ');
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(top: 3),
+                          child: Icon(Icons.circle, size: 7),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            quantity.isEmpty
+                                ? ingredient.name
+                                : '$quantity ${ingredient.name}',
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              const SizedBox(height: 20),
+              Text('Instructions', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Text(
+                recipe.instructions.isEmpty
+                    ? 'No instructions added.'
+                    : recipe.instructions,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+}
+
+=== lib/features/recipes/widgets/ingredient_editor.dart ===
+import 'package:flutter/material.dart';
+
+import 'package:preplist/features/recipes/models/recipe.dart';
+import 'package:preplist/features/foods/models/swiss_food.dart';
+import 'package:preplist/features/foods/widgets/food_picker_dialog.dart';
+
+class IngredientEditor extends StatefulWidget {
+  final List<RecipeIngredient> ingredients;
+  final ValueChanged<List<RecipeIngredient>> onChanged;
+
+  const IngredientEditor({
+    super.key,
+    required this.ingredients,
+    required this.onChanged,
+  });
+
+  @override
+  State<IngredientEditor> createState() => _IngredientEditorState();
+}
+
+class _IngredientEditorState extends State<IngredientEditor> {
+  late List<RecipeIngredient> _ingredients;
+
+  @override
+  void initState() {
+    super.initState();
+    _ingredients = List.of(widget.ingredients);
+  }
+
+  void _notifyChanged() {
+    widget.onChanged(List.unmodifiable(_ingredients));
+  }
+
+  Future<void> _addIngredient() async {
+    final food = await showDialog<SwissFood>(
+      context: context,
+      builder: (_) => const FoodPickerDialog(),
+    );
+
+    if (!mounted || food == null) return;
+
+    final amount = await _askForAmount(title: food.name, initialAmount: '');
+
+    if (!mounted || amount == null) return;
+
+    final grams = _parseGrams(amount);
+
+    if (grams == null || grams <= 0) {
+      _showInvalidAmount();
+      return;
+    }
+
+    setState(() {
+      _ingredients.add(
+        RecipeIngredient(
+          foodId: food.id,
+          name: food.name,
+          amount: amount,
+          unit: 'g',
+        ),
+      );
+    });
+
+    _notifyChanged();
+  }
+
+  Future<void> _editIngredient(int index) async {
+    if (index < 0 || index >= _ingredients.length) return;
+
+    final ingredient = _ingredients[index];
+
+    final amount = await _askForAmount(
+      title: ingredient.name,
+      initialAmount: ingredient.amount,
+    );
+
+    if (!mounted || amount == null) return;
+
+    final grams = _parseGrams(amount);
+
+    if (grams == null || grams <= 0) {
+      _showInvalidAmount();
+      return;
+    }
+
+    if (index >= _ingredients.length ||
+        _ingredients[index].id != ingredient.id) {
+      return;
+    }
+
+    setState(() {
+      _ingredients[index] = RecipeIngredient(
+        id: ingredient.id,
+        recipeId: ingredient.recipeId,
+        foodId: ingredient.foodId,
+        name: ingredient.name,
+        amount: amount,
+        unit: ingredient.unit,
+      );
+    });
+
+    _notifyChanged();
+  }
+
+  Future<String?> _askForAmount({
+    required String title,
+    required String initialAmount,
+  }) {
+    return showDialog<String>(
+      context: context,
+      builder: (_) =>
+          _IngredientAmountDialog(title: title, initialAmount: initialAmount),
+    );
+  }
+
+  double? _parseGrams(String value) {
+    return double.tryParse(value.replaceAll(',', '.'));
+  }
+
+  void _showInvalidAmount() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Enter a valid amount greater than zero grams.'),
+      ),
+    );
+  }
+
+  void _removeIngredient(int index) {
+    setState(() {
+      _ingredients.removeAt(index);
+    });
+
+    _notifyChanged();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _addIngredient,
+            icon: const Icon(Icons.add),
+            label: const Text('Add food from Swiss database'),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Text(
+              'Ingredients',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${_ingredients.length}',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_ingredients.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Center(
+              child: Text(
+                'No ingredients added yet',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          )
+        else
+          ...List.generate(_ingredients.length, (index) {
+            final ingredient = _ingredients[index];
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 6),
+              child: ListTile(
+                dense: true,
+                title: Text(ingredient.name),
+                subtitle: Text('${ingredient.amount} g'),
+                leading: const Icon(Icons.eco_outlined),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: 'Edit ingredient',
+                      icon: const Icon(Icons.edit_outlined),
+                      onPressed: () => _editIngredient(index),
+                    ),
+                    IconButton(
+                      tooltip: 'Remove ingredient',
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () => _removeIngredient(index),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+      ],
+    );
+  }
+}
+
+class _IngredientAmountDialog extends StatefulWidget {
+  final String title;
+  final String initialAmount;
+
+  const _IngredientAmountDialog({
+    required this.title,
+    required this.initialAmount,
+  });
+
+  @override
+  State<_IngredientAmountDialog> createState() =>
+      _IngredientAmountDialogState();
+}
+
+class _IngredientAmountDialogState extends State<_IngredientAmountDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialAmount);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: const InputDecoration(
+          labelText: 'Amount',
+          suffixText: 'g',
+          hintText: '150',
+          border: OutlineInputBorder(),
+        ),
+        onSubmitted: (value) {
+          Navigator.pop(context, value.trim());
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            Navigator.pop(context, _controller.text.trim());
+          },
+          child: const Text('Save'),
+        ),
+      ],
+    );
+  }
+}
+
+=== lib/features/recipes/widgets/nutrition_summary_view.dart ===
+import 'package:flutter/material.dart';
+
+import 'package:preplist/features/nutrition/services/nutrition_calculator.dart';
+
+class NutritionSummaryView extends StatelessWidget {
+  final NutritionSummary nutrition;
+  final bool compact;
+
+  const NutritionSummaryView({
+    super.key,
+    required this.nutrition,
+    this.compact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (compact) {
+      return Wrap(
+        spacing: 12,
+        runSpacing: 6,
+        children: [
+          _value(theme, 'kcal', nutrition.calories.round().toString()),
+          _value(theme, 'P', '${nutrition.protein.round()} g'),
+          _value(theme, 'C', '${nutrition.carbs.round()} g'),
+          _value(theme, 'F', '${nutrition.fat.round()} g'),
+        ],
+      );
+    }
+
+    final values = [
+      ('Calories', '${nutrition.calories.round()} kcal'),
+      ('Protein', '${nutrition.protein.toStringAsFixed(1)} g'),
+      ('Carbs', '${nutrition.carbs.toStringAsFixed(1)} g'),
+      ('Fat', '${nutrition.fat.toStringAsFixed(1)} g'),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: values.map((item) {
+          return Expanded(
+            child: Column(
+              children: [
+                Text(
+                  item.$2,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  item.$1,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _value(ThemeData theme, String label, String value) {
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: '$label ',
+            style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+          ),
+          TextSpan(
+            text: value,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+      style: theme.textTheme.bodySmall,
+    );
+  }
+}
+
+=== lib/main.dart ===
+import 'package:flutter/material.dart' as flutter;
+import 'package:dynamic_color/dynamic_color.dart';
+
+import 'package:preplist/app/main_screen.dart';
+import 'package:preplist/app/food_bootstrapper.dart';
+
+void main() {
+  flutter.WidgetsFlutterBinding.ensureInitialized();
+  flutter.runApp(const PrepListApp());
+}
+
+class PrepListApp extends flutter.StatelessWidget {
+  const PrepListApp({super.key});
+
+  static const _seedColor = flutter.Colors.green;
+
+  flutter.ColorScheme _fallbackScheme(flutter.Brightness brightness) {
+    return flutter.ColorScheme.fromSeed(
+      seedColor: _seedColor,
+      brightness: brightness,
+    );
+  }
+
+  flutter.ColorScheme _convertScheme(
+    dynamic source,
+    flutter.Brightness brightness,
+  ) {
+    if (source == null) {
+      return _fallbackScheme(brightness);
+    }
+
+    return flutter.ColorScheme(
+      brightness: brightness,
+      primary: source.primary,
+      onPrimary: source.onPrimary,
+      primaryContainer: source.primaryContainer,
+      onPrimaryContainer: source.onPrimaryContainer,
+      secondary: source.secondary,
+      onSecondary: source.onSecondary,
+      secondaryContainer: source.secondaryContainer,
+      onSecondaryContainer: source.onSecondaryContainer,
+      tertiary: source.tertiary,
+      onTertiary: source.onTertiary,
+      tertiaryContainer: source.tertiaryContainer,
+      onTertiaryContainer: source.onTertiaryContainer,
+      error: source.error,
+      onError: source.onError,
+      errorContainer: source.errorContainer,
+      onErrorContainer: source.onErrorContainer,
+      surface: source.surface,
+      onSurface: source.onSurface,
+      surfaceContainerLowest: source.surfaceContainerLowest,
+      surfaceContainerLow: source.surfaceContainerLow,
+      surfaceContainer: source.surfaceContainer,
+      surfaceContainerHigh: source.surfaceContainerHigh,
+      surfaceContainerHighest: source.surfaceContainerHighest,
+      onSurfaceVariant: source.onSurfaceVariant,
+      outline: source.outline,
+      outlineVariant: source.outlineVariant,
+      shadow: source.shadow,
+      scrim: source.scrim,
+      inverseSurface: source.inverseSurface,
+      onInverseSurface: source.onInverseSurface,
+      inversePrimary: source.inversePrimary,
+    );
+  }
+
+  @override
+  flutter.Widget build(flutter.BuildContext context) {
+    return DynamicColorBuilder(
+      builder: (lightDynamic, darkDynamic) {
+        final lightScheme = _convertScheme(
+          lightDynamic,
+          flutter.Brightness.light,
+        );
+
+        final darkScheme = _convertScheme(darkDynamic, flutter.Brightness.dark);
+
+        return flutter.MaterialApp(
+          title: 'PrepList',
+          debugShowCheckedModeBanner: false,
+          theme: flutter.ThemeData(
+            useMaterial3: true,
+            colorScheme: lightScheme,
+          ),
+          darkTheme: flutter.ThemeData(
+            useMaterial3: true,
+            colorScheme: darkScheme,
+          ),
+          themeMode: flutter.ThemeMode.system,
+          home: const FoodBootstrapper(child: MainScreen()),
+        );
+      },
+    );
+  }
+}
