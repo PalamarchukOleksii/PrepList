@@ -1,5 +1,5 @@
 name: preplist
-description: "A new Flutter project."
+description: "Plan meals, manage recipes, track nutrition, organize groceries, and keep your kitchen inventory in one place."
 publish_to: 'none'
 license: MIT
 version: 0.1.0+1
