@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:preplist/core/ui/responsive.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 class AboutScreen extends StatelessWidget {
@@ -14,7 +15,9 @@ class AboutScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('About PrepList')),
-      body: ListView(
+      body: ContentWidth(
+        maxWidth: 640,
+        child: ListView(
         padding: const EdgeInsets.all(24),
         children: [
           const SizedBox(height: 16),
@@ -215,6 +218,7 @@ class AboutScreen extends StatelessWidget {
 
           const SizedBox(height: 16),
         ],
+      ),
       ),
     );
   }

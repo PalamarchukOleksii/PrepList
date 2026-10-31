@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'package:preplist/core/ui/responsive.dart';
 import 'package:preplist/features/foods/repositories/food_repository.dart';
 import 'package:preplist/features/foods/models/swiss_food.dart';
+import 'package:preplist/features/foods/widgets/food_editor_dialog.dart';
 
 class FoodPickerDialog extends StatefulWidget {
   const FoodPickerDialog({super.key});
@@ -17,21 +19,25 @@ class _FoodPickerDialogState extends State<FoodPickerDialog> {
   bool _searching = false;
 
   @override
+  void initState() {
+    super.initState();
+    _search('');
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
 
   Future<void> _search(String query) async {
-    if (query.trim().isEmpty) {
-      setState(() => _foods = []);
-      return;
-    }
-
     setState(() => _searching = true);
 
     try {
-      final results = await FoodRepository.instance.searchFoods(query);
+      // With an empty query, show the user's own foods as quick picks.
+      final results = query.trim().isEmpty
+          ? await FoodRepository.instance.getCustomFoods()
+          : await FoodRepository.instance.searchFoods(query);
 
       if (!mounted) return;
 
@@ -49,13 +55,35 @@ class _FoodPickerDialogState extends State<FoodPickerDialog> {
     }
   }
 
+  Future<void> _createFood() async {
+    final food = await showDialog<SwissFood>(
+      context: context,
+      builder: (_) => FoodEditorDialog(initialName: _controller.text.trim()),
+    );
+
+    if (!mounted || food == null) return;
+
+    // The new food is selected right away.
+    Navigator.pop(context, food);
+  }
+
+  String get _emptyMessage {
+    if (_controller.text.trim().isEmpty) {
+      return 'Start typing to search foods,\nor create your own.';
+    }
+
+    return 'No foods found.';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return AlertDialog(
       title: const Text('Select food'),
       content: SizedBox(
-        width: 500,
-        height: 450,
+        width: dialogWidth(context),
+        height: dialogHeight(context),
         child: Column(
           children: [
             TextField(
@@ -73,10 +101,17 @@ class _FoodPickerDialogState extends State<FoodPickerDialog> {
             Expanded(
               child: _foods.isEmpty
                   ? Center(
-                      child: Text(
-                        _controller.text.isEmpty
-                            ? 'Start typing to search foods'
-                            : 'No foods found',
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(_emptyMessage, textAlign: TextAlign.center),
+                          const SizedBox(height: 12),
+                          FilledButton.tonalIcon(
+                            onPressed: _createFood,
+                            icon: const Icon(Icons.add),
+                            label: const Text('Create new food'),
+                          ),
+                        ],
                       ),
                     )
                   : ListView.separated(
@@ -87,6 +122,13 @@ class _FoodPickerDialogState extends State<FoodPickerDialog> {
 
                         return ListTile(
                           title: Text(food.name),
+                          trailing: food.isCustom
+                              ? Icon(
+                                  Icons.person_outline,
+                                  size: 18,
+                                  color: theme.colorScheme.primary,
+                                )
+                              : null,
                           subtitle: Text(
                             '${food.calories.toStringAsFixed(0)} kcal'
                             ' · P ${food.protein.toStringAsFixed(1)} g'
@@ -105,6 +147,11 @@ class _FoodPickerDialogState extends State<FoodPickerDialog> {
         ),
       ),
       actions: [
+        TextButton.icon(
+          onPressed: _createFood,
+          icon: const Icon(Icons.add),
+          label: const Text('New food'),
+        ),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancel'),

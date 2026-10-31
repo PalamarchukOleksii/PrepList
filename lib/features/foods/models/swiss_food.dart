@@ -9,6 +9,9 @@ class SwissFood {
   final double carbs;
   final double fat;
 
+  // 'swiss' for imported foods, 'custom' for foods created by the user.
+  final String source;
+
   const SwissFood({
     required this.id,
     required this.name,
@@ -17,7 +20,10 @@ class SwissFood {
     this.protein = 0,
     this.carbs = 0,
     this.fat = 0,
+    this.source = 'swiss',
   });
+
+  bool get isCustom => source == 'custom';
 
   factory SwissFood.fromMap(Map<String, Object?> map) {
     return SwissFood(
@@ -31,6 +37,7 @@ class SwissFood {
       protein: _toDouble(map['protein']),
       carbs: _toDouble(map['carbs']),
       fat: _toDouble(map['fat']),
+      source: map['source']?.toString() ?? 'swiss',
     );
   }
 

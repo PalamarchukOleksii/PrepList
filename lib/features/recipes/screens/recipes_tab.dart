@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:preplist/core/ui/top_message.dart';
+import 'package:preplist/core/ui/responsive.dart';
 
 import 'package:preplist/features/recipes/repositories/recipe_repository.dart';
 import 'package:preplist/features/nutrition/services/nutrition_calculator.dart';
@@ -76,8 +78,7 @@ class _RecipesTabState extends State<RecipesTab> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showTopMessage(context, message, isError: message.startsWith('Could not'));
   }
 
   Future<void> _openForm({Recipe? recipe}) async {
@@ -434,9 +435,7 @@ class _RecipeFormDialogState extends State<_RecipeFormDialog> {
     final name = _name.text.trim();
 
     if (name.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Recipe name is required.')));
+      showTopMessage(context, 'Recipe name is required.', isError: true);
       return;
     }
 
@@ -481,7 +480,7 @@ class _RecipeFormDialogState extends State<_RecipeFormDialog> {
     return AlertDialog(
       title: Text(widget.recipe == null ? 'New recipe' : 'Edit recipe'),
       content: SizedBox(
-        width: 500,
+        width: dialogWidth(context),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -566,7 +565,7 @@ class _RecipeDetailsDialog extends StatelessWidget {
     return AlertDialog(
       title: Text(recipe.name),
       content: SizedBox(
-        width: 450,
+        width: dialogWidth(context, max: 450),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

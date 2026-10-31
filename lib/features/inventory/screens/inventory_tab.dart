@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:preplist/core/ui/top_message.dart';
 
 import 'package:preplist/core/constants/measurement_units.dart';
 import 'package:preplist/features/inventory/repositories/inventory_repository.dart';
@@ -77,10 +78,10 @@ class _InventoryTabState extends State<InventoryTab> {
     final available = double.tryParse(item.amount.trim().replaceAll(',', '.'));
 
     if (available == null || available <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('This item has no usable numeric quantity.'),
-        ),
+      showTopMessage(
+        context,
+        'This item has no usable numeric quantity.',
+        isError: true,
       );
       return;
     }
@@ -101,24 +102,18 @@ class _InventoryTabState extends State<InventoryTab> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Used ${_formatAmount(amountUsed)} ${item.unit} of ${item.name}.',
-          ),
-          action: SnackBarAction(
-            label: 'Undo',
-            onPressed: () {
-              _undoLatestUsage();
-            },
-          ),
-        ),
+      showTopMessage(
+        context,
+        'Used ${_formatAmount(amountUsed)} ${item.unit} of ${item.name}.',
+        actionLabel: 'Undo',
+        onAction: () {
+          _undoLatestUsage();
+        },
       );
     } catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error.toString())));
+      showTopMessage(context, error.toString(), isError: true);
     }
   }
 
@@ -132,14 +127,11 @@ class _InventoryTabState extends State<InventoryTab> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${usage.name} restored to inventory.')),
-      );
+      showTopMessage(context, '${usage.name} restored to inventory.');
     } catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error.toString())));
+      showTopMessage(context, error.toString(), isError: true);
     }
   }
 

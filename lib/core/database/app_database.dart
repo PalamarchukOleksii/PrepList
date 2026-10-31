@@ -15,7 +15,7 @@ class AppDatabase {
 
     _database = await openDatabase(
       path.join(databasePath, 'preplist.db'),
-      version: 8,
+      version: 9,
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
@@ -68,6 +68,14 @@ class AppDatabase {
 
         if (oldVersion < 8) {
           await _createFoodTables(db);
+        }
+
+        // Tables created at version 8 do not have the `source` column yet.
+        // Tables created above (oldVersion < 8) already include it.
+        if (oldVersion >= 8 && oldVersion < 9) {
+          await db.execute(
+            "ALTER TABLE foods ADD COLUMN source TEXT NOT NULL DEFAULT 'swiss'",
+          );
         }
       },
     );
@@ -184,7 +192,8 @@ class AppDatabase {
         calories REAL NOT NULL DEFAULT 0,
         protein REAL NOT NULL DEFAULT 0,
         carbs REAL NOT NULL DEFAULT 0,
-        fat REAL NOT NULL DEFAULT 0
+        fat REAL NOT NULL DEFAULT 0,
+        source TEXT NOT NULL DEFAULT 'swiss'
       )
     ''');
 

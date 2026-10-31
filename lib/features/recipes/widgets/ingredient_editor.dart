@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:preplist/core/ui/top_message.dart';
 
 import 'package:preplist/features/recipes/models/recipe.dart';
 import 'package:preplist/features/foods/models/swiss_food.dart';
@@ -118,10 +119,10 @@ class _IngredientEditorState extends State<IngredientEditor> {
   }
 
   void _showInvalidAmount() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Enter a valid amount greater than zero grams.'),
-      ),
+    showTopMessage(
+      context,
+      'Enter a valid amount greater than zero grams.',
+      isError: true,
     );
   }
 

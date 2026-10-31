@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:preplist/core/ui/top_message.dart';
 
 import 'package:preplist/features/groceries/repositories/grocery_repository.dart';
 
@@ -110,8 +111,7 @@ class _GroceriesTabState extends State<GroceriesTab> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showTopMessage(context, message, isError: message.startsWith('Could not'));
   }
 
   @override

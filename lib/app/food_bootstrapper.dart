@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 
+import 'package:preplist/app/widgets/app_logo.dart';
 import 'package:preplist/features/foods/repositories/food_repository.dart';
-import 'package:preplist/data/services/swiss_food_import_service.dart';
+import 'package:preplist/features/foods/widgets/swiss_import_view.dart';
 
+enum _Stage { checking, choice, importing, ready }
+
+/// Decides what to show on startup:
+///  * the first-run choice (import the Swiss database, or start without it),
+///  * the import progress screen, or
+///  * the app itself.
 class FoodBootstrapper extends StatefulWidget {
   final Widget child;
 
@@ -13,149 +20,192 @@ class FoodBootstrapper extends StatefulWidget {
 }
 
 class _FoodBootstrapperState extends State<FoodBootstrapper> {
-  bool _loading = true;
-  bool _failed = false;
-
-  int _completed = 0;
-  int _total = 0;
-
-  String? _error;
+  _Stage _stage = _Stage.checking;
 
   @override
   void initState() {
     super.initState();
-    _initialize();
+    _check();
   }
 
-  Future<void> _initialize() async {
-    setState(() {
-      _loading = true;
-      _failed = false;
-      _error = null;
-      _completed = 0;
-      _total = 0;
-    });
+  Future<void> _check() async {
+    final decided = await FoodRepository.instance.hasImportChoice();
 
-    try {
-      final database = FoodRepository.instance;
+    if (!mounted) return;
 
-      if (await database.isImported()) {
-        if (!mounted) return;
+    setState(() => _stage = decided ? _Stage.ready : _Stage.choice);
+  }
 
-        setState(() => _loading = false);
-        return;
-      }
+  Future<void> _skip() async {
+    await FoodRepository.instance.setImportChoice(
+      FoodRepository.choiceSkipped,
+    );
 
-      final importer = SwissFoodImportService();
+    if (!mounted) return;
 
-      await importer.importDatabase(
-        onProgress: (completed, total) {
-          if (!mounted) return;
-
-          setState(() {
-            _completed = completed;
-            _total = total;
-          });
-        },
-      );
-
-      if (!mounted) return;
-
-      setState(() => _loading = false);
-    } catch (error) {
-      if (!mounted) return;
-
-      setState(() {
-        _loading = false;
-        _failed = true;
-        _error = error.toString();
-      });
-    }
+    setState(() => _stage = _Stage.ready);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_loading && !_failed) {
-      return widget.child;
-    }
+    switch (_stage) {
+      case _Stage.ready:
+        return widget.child;
 
-    final progress = _total == 0 ? null : _completed / _total;
+      case _Stage.importing:
+        return SwissImportView(
+          onFinished: (imported) {
+            setState(() => _stage = imported ? _Stage.ready : _Stage.choice);
+          },
+        );
+
+      case _Stage.checking:
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+
+      case _Stage.choice:
+        return _ChoiceScreen(
+          onImport: () => setState(() => _stage = _Stage.importing),
+          onSkip: _skip,
+        );
+    }
+  }
+}
+
+class _ChoiceScreen extends StatelessWidget {
+  final VoidCallback onImport;
+  final VoidCallback onSkip;
+
+  const _ChoiceScreen({required this.onImport, required this.onSkip});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
 
     return Scaffold(
       body: SafeArea(
         child: Center(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(24),
-                      child: Image.asset(
-                        'assets/icon/app_icon.png',
-                        width: 96,
-                        height: 96,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
+                  const AppLogo(size: 96),
                   const SizedBox(height: 24),
                   Text(
-                    _failed
-                        ? 'Could not download food database'
-                        : 'Preparing your food database',
-                    style: Theme.of(context).textTheme.headlineSmall,
+                    'Set up your food database',
+                    style: theme.textTheme.headlineSmall,
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    _failed
-                        ? 'An internet connection is required for the '
-                              'initial download.'
-                        : 'Downloading the Swiss Food Composition Database. '
-                              'This is only required once.',
+                    'Food data is used to calculate calories and macros for '
+                    'your recipes and meals.',
                     textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
-                  const SizedBox(height: 24),
-                  if (_loading) ...[
-                    LinearProgressIndicator(value: progress),
-                    const SizedBox(height: 12),
-                    Text(
-                      _total == 0
-                          ? 'Connecting to Swiss database...'
-                          : '$_completed / $_total foods',
+                  const SizedBox(height: 28),
+                  _OptionCard(
+                    icon: Icons.cloud_download_outlined,
+                    title: 'Import Swiss database',
+                    description:
+                        'Download the Swiss Food Composition Database. '
+                        'Requires an internet connection and runs once.',
+                    primary: true,
+                    onTap: onImport,
+                  ),
+                  const SizedBox(height: 12),
+                  _OptionCard(
+                    icon: Icons.edit_note,
+                    title: 'Start without it',
+                    description:
+                        'Skip the download and create your own foods '
+                        'with custom nutrition values.',
+                    onTap: onSkip,
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Either way, you can add your own foods at any time. '
+                    'You can also import the Swiss database later from '
+                    'the menu.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
-                  ],
-                  if (_failed) ...[
-                    Text(
-                      _error ?? 'Unknown error',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    FilledButton(
-                      onPressed: _initialize,
-                      child: const Text('Try again'),
-                    ),
-                  ],
+                  ),
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OptionCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+  final bool primary;
+  final VoidCallback onTap;
+
+  const _OptionCard({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.onTap,
+    this.primary = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final background = primary
+        ? scheme.primaryContainer
+        : scheme.surfaceContainerHigh;
+    final foreground = primary
+        ? scheme.onPrimaryContainer
+        : scheme.onSurface;
+
+    return Material(
+      color: background,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Icon(icon, size: 32, color: foreground),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: foreground,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: foreground),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: foreground),
+            ],
           ),
         ),
       ),

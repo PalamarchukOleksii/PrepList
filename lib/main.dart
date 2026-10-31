@@ -88,6 +88,20 @@ class PrepListApp extends flutter.StatelessWidget {
             colorScheme: darkScheme,
           ),
           themeMode: flutter.ThemeMode.system,
+          // Keeps layouts usable when the system font size is very large.
+          builder: (context, child) {
+            final media = flutter.MediaQuery.of(context);
+
+            return flutter.MediaQuery(
+              data: media.copyWith(
+                textScaler: media.textScaler.clamp(
+                  minScaleFactor: 0.85,
+                  maxScaleFactor: 1.3,
+                ),
+              ),
+              child: child!,
+            );
+          },
           home: const FoodBootstrapper(child: MainScreen()),
         );
       },

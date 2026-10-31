@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:preplist/core/ui/top_message.dart';
 
 import 'package:preplist/features/meal_planning/repositories/meal_repository.dart';
 import 'package:preplist/features/recipes/repositories/recipe_repository.dart';
@@ -296,8 +297,7 @@ class _WeekPlanTabState extends State<WeekPlanTab> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showTopMessage(context, message, isError: true);
   }
 
   @override
@@ -713,10 +713,10 @@ class _AddMealDialogState extends State<_AddMealDialog> {
     );
 
     if (food == null || amount == null || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Select a food and enter a valid amount.'),
-        ),
+      showTopMessage(
+        context,
+        'Select a food and enter a valid amount.',
+        isError: true,
       );
       return;
     }
@@ -749,6 +749,8 @@ class _AddMealDialogState extends State<_AddMealDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 400;
+
     return AlertDialog(
       title: Text('Add to ${widget.category}'),
       content: SingleChildScrollView(
@@ -757,16 +759,16 @@ class _AddMealDialogState extends State<_AddMealDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SegmentedButton<String>(
-              segments: const [
+              segments: [
                 ButtonSegment(
                   value: 'recipe',
                   label: Text('Recipe'),
-                  icon: Icon(Icons.menu_book_outlined),
+                  icon: compact ? null : const Icon(Icons.menu_book_outlined),
                 ),
                 ButtonSegment(
                   value: 'ingredient',
                   label: Text('Ingredient'),
-                  icon: Icon(Icons.restaurant_outlined),
+                  icon: compact ? null : const Icon(Icons.restaurant_outlined),
                 ),
               ],
               selected: {_type},
